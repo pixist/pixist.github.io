@@ -1,6 +1,7 @@
 import { WaveformType } from './audioEngine';
 
 export type Role = 'instructor' | 'student' | null;
+export type TranspositionDirection = 'one-way' | 'both-ways';
 
 export interface SequenceStep {
   note: string;
@@ -18,6 +19,8 @@ export interface Sequence {
   bpm: number;
   totalDuration: number;
   restDuration: number;
+  transpositionDirection?: TranspositionDirection;
+  stepCount?: number;
 }
 
 export interface AppState {

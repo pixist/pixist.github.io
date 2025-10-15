@@ -108,3 +108,21 @@ export const getNotesBetween = (minNote: string, maxNote: string): string[] => {
   
   return notes;
 };
+
+export const getSemitonesBetween = (note1: string, note2: string): number => {
+  const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const match1 = note1.match(/^([A-G]#?)(\d)$/);
+  const match2 = note2.match(/^([A-G]#?)(\d)$/);
+  
+  if (!match1 || !match2) return 0;
+  
+  const octave1 = parseInt(match1[2]);
+  const octave2 = parseInt(match2[2]);
+  const noteIndex1 = noteNames.indexOf(match1[1]);
+  const noteIndex2 = noteNames.indexOf(match2[1]);
+  
+  const total1 = octave1 * 12 + noteIndex1;
+  const total2 = octave2 * 12 + noteIndex2;
+  
+  return total2 - total1;
+};

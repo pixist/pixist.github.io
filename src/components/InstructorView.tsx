@@ -8,14 +8,16 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Input } from '@/components/ui/input';
 import { PianoKeyboard } from './PianoKeyboard';
 import { StepSequencer } from './StepSequencer';
 import { RangeIndicator } from './RangeIndicator';
 import { RoomPresence } from './RoomPresence';
 import { Play, Stop, Record, ArrowsClockwise, GraduationCap, MusicNote } from '@phosphor-icons/react';
-import { Sequence, SequenceStep, InstructorState } from '@/lib/types';
+import { Sequence, SequenceStep, InstructorState, TranspositionDirection } from '@/lib/types';
 import { getNotesBetween, playNoteByName, resumeAudioContext, WaveformType } from '@/lib/audioEngine';
 import { Translations } from '@/lib/i18n';
+import { generateTransposedSequences } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface InstructorViewProps {
@@ -43,6 +45,8 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
   const [waveform, setWaveform] = useState<WaveformType>('sine');
   const [bpm, setBpm] = useState(120);
   const [restDuration, setRestDuration] = useState(2);
+  const [stepCount, setStepCount] = useState(DEFAULT_STEPS);
+  const [transpositionDirection, setTranspositionDirection] = useState<TranspositionDirection>('both-ways');
   
   const [steps, setSteps] = useState<Array<string | null>>(Array(DEFAULT_STEPS).fill(null));
   const [currentStep, setCurrentStep] = useState(-1);
@@ -78,6 +82,17 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
       }
     };
   }, []);
+
+  useEffect(() => {
+    const currentLength = steps.length;
+    if (stepCount !== currentLength) {
+      const newSteps = Array(stepCount).fill(null);
+      for (let i = 0; i < Math.min(stepCount, currentLength); i++) {
+        newSteps[i] = steps[i];
+      }
+      setSteps(newSteps);
+    }
+  }, [stepCount]);
 
   const handleStepClick = (stepIndex: number, note: string) => {
     const newSteps = [...steps];
@@ -179,30 +194,39 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
   };
 
   const handleTransmit = () => {
-    let sequenceSteps: SequenceStep[];
-    let totalDuration: number;
+    let baseSequenceSteps: SequenceStep[];
+    let baseStepDuration: number;
 
     if (mode === 'step') {
-      const stepDuration = (60 / bpm) * 1000 / 4;
-      sequenceSteps = steps
+      baseStepDuration = (60 / bpm) * 1000 / 4;
+      baseSequenceSteps = steps
         .map((note, index) => 
-          note ? { note, timestamp: index * stepDuration, duration: 0.3 } : null
+          note ? { note, timestamp: index * baseStepDuration, duration: 0.3 } : null
         )
         .filter((s): s is SequenceStep => s !== null);
-      totalDuration = steps.length * stepDuration;
     } else {
-      sequenceSteps = recordedSteps;
-      totalDuration = recordedSteps[recordedSteps.length - 1]?.timestamp || 0;
+      baseSequenceSteps = recordedSteps;
     }
 
-    if (sequenceSteps.length === 0) {
+    if (baseSequenceSteps.length === 0) {
       toast.error(t.toasts.addNotes);
       return;
     }
 
+    const transposedSteps = generateTransposedSequences(
+      baseSequenceSteps,
+      rootNote,
+      minNote,
+      maxNote,
+      transpositionDirection,
+      bpm
+    );
+
+    const totalDuration = transposedSteps[transposedSteps.length - 1]?.timestamp || 0;
+
     const sequence: Sequence = {
       id: Date.now().toString(),
-      steps: sequenceSteps,
+      steps: transposedSteps,
       rootNote,
       minNote,
       maxNote,
@@ -210,6 +234,8 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
       bpm,
       totalDuration,
       restDuration,
+      transpositionDirection,
+      stepCount,
     };
 
     onSequenceCreate(sequence);
@@ -217,7 +243,7 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
   };
 
   const handleClear = () => {
-    setSteps(Array(DEFAULT_STEPS).fill(null));
+    setSteps(Array(stepCount).fill(null));
     setRecordedSteps([]);
     setCurrentStep(-1);
     setIsPlaying(false);
@@ -281,7 +307,7 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
             </div>
 
             <div className="space-y-2">
-              <Label>{t.instructor.minNote}</Label>
+              <Label>{t.instructor.startNote}</Label>
               <Select value={minNote} onValueChange={setMinNote}>
                 <SelectTrigger>
                   <SelectValue />
@@ -295,7 +321,7 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
             </div>
 
             <div className="space-y-2">
-              <Label>{t.instructor.maxNote}</Label>
+              <Label>{t.instructor.endNote}</Label>
               <Select value={maxNote} onValueChange={setMaxNote}>
                 <SelectTrigger>
                   <SelectValue />
@@ -304,6 +330,19 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
                   {availableNotes.slice(1).map(note => (
                     <SelectItem key={note} value={note}>{note}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t.instructor.transpositionDirection}</Label>
+              <Select value={transpositionDirection} onValueChange={(v) => setTranspositionDirection(v as TranspositionDirection)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="one-way">{t.instructor.oneWay}</SelectItem>
+                  <SelectItem value="both-ways">{t.instructor.bothWays}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -320,6 +359,23 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t.instructor.stepCount}</Label>
+              <Input
+                type="number"
+                value={stepCount}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (!isNaN(val) && val > 0 && val <= 64) {
+                    setStepCount(val);
+                  }
+                }}
+                min={1}
+                max={64}
+                disabled={isPlaying || isRecording}
+              />
             </div>
 
             <div className="space-y-2">

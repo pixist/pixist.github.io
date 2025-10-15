@@ -29,6 +29,8 @@ export interface Translations {
     rootNote: string;
     minNote: string;
     maxNote: string;
+    startNote: string;
+    endNote: string;
     waveform: string;
     instrument: string;
     bpm: string;
@@ -49,6 +51,10 @@ export interface Translations {
     range: string;
     activeUsers: string;
     noStudents: string;
+    stepCount: string;
+    transpositionDirection: string;
+    oneWay: string;
+    bothWays: string;
   };
   student: {
     title: string;
@@ -120,6 +126,8 @@ const en: Translations = {
     rootNote: 'Root Note',
     minNote: 'Min Note',
     maxNote: 'Max Note',
+    startNote: 'Start Note',
+    endNote: 'End Note',
     waveform: 'Waveform',
     instrument: 'Instrument',
     bpm: 'BPM (Tempo)',
@@ -140,6 +148,10 @@ const en: Translations = {
     range: 'Range',
     activeUsers: 'Active Users',
     noStudents: 'No students in room',
+    stepCount: 'Step Count',
+    transpositionDirection: 'Transposition Direction',
+    oneWay: 'One Way (Low → High)',
+    bothWays: 'Both Ways (Low → High → Low)',
   },
   student: {
     title: 'Student Mode',
@@ -211,6 +223,8 @@ const de: Translations = {
     rootNote: 'Grundton',
     minNote: 'Tiefster Ton',
     maxNote: 'Höchster Ton',
+    startNote: 'Startton',
+    endNote: 'Endton',
     waveform: 'Wellenform',
     instrument: 'Instrument',
     bpm: 'BPM (Tempo)',
@@ -231,6 +245,10 @@ const de: Translations = {
     range: 'Bereich',
     activeUsers: 'Aktive Benutzer',
     noStudents: 'Keine Schüler im Raum',
+    stepCount: 'Schrittanzahl',
+    transpositionDirection: 'Transpositionsrichtung',
+    oneWay: 'Einweg (Tief → Hoch)',
+    bothWays: 'Beide Wege (Tief → Hoch → Tief)',
   },
   student: {
     title: 'Schüler-Modus',
@@ -302,6 +320,8 @@ const tr: Translations = {
     rootNote: 'Kök Nota',
     minNote: 'Min Nota',
     maxNote: 'Maks Nota',
+    startNote: 'Başlangıç Notası',
+    endNote: 'Bitiş Notası',
     waveform: 'Dalga Formu',
     instrument: 'Enstrüman',
     bpm: 'BPM (Tempo)',
@@ -322,6 +342,10 @@ const tr: Translations = {
     range: 'Aralık',
     activeUsers: 'Aktif Kullanıcılar',
     noStudents: 'Odada öğrenci yok',
+    stepCount: 'Adım Sayısı',
+    transpositionDirection: 'Transpozisyon Yönü',
+    oneWay: 'Tek Yön (Alçak → Yüksek)',
+    bothWays: 'İki Yön (Alçak → Yüksek → Alçak)',
   },
   student: {
     title: 'Öğrenci Modu',
