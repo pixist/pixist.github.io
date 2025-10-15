@@ -41,6 +41,7 @@ export interface StudentPlaybackState {
   isPlaying: boolean;
   isPaused: boolean;
   currentStep: number;
+  currentNote: string | null;
   progress: number;
   timestamp: number;
 }

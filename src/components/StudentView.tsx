@@ -26,6 +26,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
   const [isPaused, setIsPaused] = useState(false);
   const [loop, setLoop] = useState(false);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(-1);
+  const [currentNote, setCurrentNote] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const timeoutsRef = useRef<NodeJS.Timeout[]>([]);
   const pauseTimeRef = useRef<number>(0);
@@ -36,6 +37,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
     isPlaying: false,
     isPaused: false,
     currentStep: -1,
+    currentNote: null,
     progress: 0,
     timestamp: Date.now(),
   });
@@ -46,10 +48,11 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
       isPlaying,
       isPaused,
       currentStep: currentNoteIndex,
+      currentNote,
       progress,
       timestamp: Date.now(),
     }));
-  }, [isPlaying, isPaused, currentNoteIndex, progress, setStudentState]);
+  }, [isPlaying, isPaused, currentNoteIndex, currentNote, progress, setStudentState]);
 
   useEffect(() => {
     return () => {
@@ -67,6 +70,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
     setIsPlaying(false);
     setIsPaused(false);
     setCurrentNoteIndex(-1);
+    setCurrentNote(null);
     setProgress(0);
     timeoutsRef.current.forEach(clearTimeout);
     timeoutsRef.current = [];
@@ -102,9 +106,14 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
         const timeout = setTimeout(() => {
           playNoteByName(step.note, step.duration, sequence.waveform);
           setCurrentNoteIndex(index);
+          setCurrentNote(step.note);
           
           const elapsed = Date.now() - startTime;
           setProgress((elapsed / sequence.totalDuration) * 100);
+
+          setTimeout(() => {
+            setCurrentNote(null);
+          }, step.duration * 1000);
 
           if (index === sequence.steps.length - 1) {
             setTimeout(() => {
@@ -112,6 +121,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
               if (loop) {
                 if (sequence.restDuration > 0) {
                   setCurrentNoteIndex(-1);
+                  setCurrentNote(null);
                   setTimeout(() => {
                     if (isPlaying && !isPaused) {
                       playOnce();
@@ -170,6 +180,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
     isPlaying,
     isPaused,
     currentStep: currentNoteIndex,
+    currentNote,
     progress,
     timestamp: Date.now(),
   };

@@ -13,8 +13,9 @@ import { PianoKeyboard } from './PianoKeyboard';
 import { StepSequencer } from './StepSequencer';
 import { RangeIndicator } from './RangeIndicator';
 import { RoomPresence } from './RoomPresence';
+import { MiniKeyboard } from './MiniKeyboard';
 import { Play, Stop, Record, ArrowsClockwise, GraduationCap, MusicNote } from '@phosphor-icons/react';
-import { Sequence, SequenceStep, InstructorState, TranspositionDirection } from '@/lib/types';
+import { Sequence, SequenceStep, InstructorState, TranspositionDirection, StudentPlaybackState } from '@/lib/types';
 import { getNotesBetween, playNoteByName, resumeAudioContext, WaveformType } from '@/lib/audioEngine';
 import { Translations } from '@/lib/i18n';
 import { generateTransposedSequences } from '@/lib/utils';
@@ -62,6 +63,8 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
     currentStep: -1,
     timestamp: Date.now(),
   });
+
+  const [studentStateShared] = useKV<StudentPlaybackState | null>(`room-${roomId}-student-state`, null);
 
   const availableNotes = getNotesBetween(minNote, maxNote);
 
@@ -280,6 +283,30 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
         </div>
 
         <RoomPresence roomId={roomId} currentRole="instructor" t={t} instructorState={instructorState} />
+
+        {studentStateShared && studentStateShared.isPlaying && (
+          <Card className="p-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold">{t.student.title} - {t.student.progress}</h3>
+                <Badge variant="secondary" className={studentStateShared.isPaused ? '' : 'animate-pulse'}>
+                  {studentStateShared.isPaused ? t.student.paused : t.student.playing}
+                </Badge>
+              </div>
+              <MiniKeyboard
+                startNote={minNote}
+                endNote={maxNote}
+                currentNote={studentStateShared.currentNote}
+              />
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{Math.round(studentStateShared.progress)}%</span>
+                {studentStateShared.currentNote && (
+                  <span className="font-medium text-foreground">{studentStateShared.currentNote}</span>
+                )}
+              </div>
+            </div>
+          </Card>
+        )}
 
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-4">
