@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { getNotesBetween } from '@/lib/audioEngine';
 import { ArrowUp, ArrowDown } from '@phosphor-icons/react';
+import { useRef, useEffect } from 'react';
 
 interface StepSequencerProps {
   steps: Array<string | null>;
@@ -25,13 +26,19 @@ export function StepSequencer({
   maxNote,
   disabled = false
 }: StepSequencerProps) {
-  const rootNotesBetween = getNotesBetween(rootNote, rootNote + '0');
-  const rootNotePattern = rootNotesBetween.length > 0 ? rootNotesBetween[0].replace(/\d+$/, '') : '';
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const allNotes = getNotesBetween('D0', 'D7');
   
-  const displayNotes = availableNotes.filter(note => {
-    const noteName = note.replace(/\d+$/, '');
-    return noteName === rootNotePattern;
-  });
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      const c3Index = allNotes.indexOf('C3');
+      if (c3Index !== -1) {
+        const rowHeight = 42;
+        const scrollPosition = c3Index * rowHeight;
+        scrollContainerRef.current.scrollTop = scrollPosition;
+      }
+    }
+  }, []);
 
   return (
     <div className="w-full overflow-x-auto">
@@ -52,59 +59,64 @@ export function StepSequencer({
           ))}
         </div>
 
-        {displayNotes.map((note) => {
-          const isMinNote = note === minNote;
-          const isMaxNote = note === maxNote;
-          
-          return (
-            <div key={note} className="flex gap-1 mb-1">
-              <div className="w-14 flex items-center justify-end pr-2 text-xs font-semibold">
-                <div className="flex items-center gap-1">
-                  {isMinNote && <ArrowDown size={12} weight="bold" className="text-destructive" />}
-                  {isMaxNote && <ArrowUp size={12} weight="bold" className="text-accent" />}
-                  <span className={cn(
-                    isMinNote && "text-destructive",
-                    isMaxNote && "text-accent",
-                    !isMinNote && !isMaxNote && "text-muted-foreground"
-                  )}>
-                    {note}
-                  </span>
+        <div 
+          ref={scrollContainerRef}
+          className="max-h-96 overflow-y-auto pr-2"
+        >
+          {allNotes.reverse().map((note) => {
+            const isMinNote = note === minNote;
+            const isMaxNote = note === maxNote;
+            
+            return (
+              <div key={note} className="flex gap-1 mb-1">
+                <div className="w-14 flex items-center justify-end pr-2 text-xs font-semibold">
+                  <div className="flex items-center gap-1">
+                    {isMinNote && <ArrowDown size={12} weight="bold" className="text-destructive" />}
+                    {isMaxNote && <ArrowUp size={12} weight="bold" className="text-accent" />}
+                    <span className={cn(
+                      isMinNote && "text-destructive",
+                      isMaxNote && "text-accent",
+                      !isMinNote && !isMaxNote && "text-muted-foreground"
+                    )}>
+                      {note}
+                    </span>
+                  </div>
                 </div>
+                {steps.map((stepNote, stepIndex) => {
+                  const isActive = stepNote === note;
+                  const isCurrent = currentStep === stepIndex;
+                  const isGhost = !isActive;
+                  
+                  return (
+                    <button
+                      key={stepIndex}
+                      disabled={disabled}
+                      onClick={() => {
+                        if (isActive) {
+                          onStepClear(stepIndex);
+                        } else {
+                          onStepClick(stepIndex, note);
+                        }
+                      }}
+                      className={cn(
+                        "w-12 h-10 rounded border-2 transition-all relative",
+                        isActive && !isCurrent && "bg-accent border-accent",
+                        isActive && isCurrent && "bg-accent border-accent scale-110 shadow-lg",
+                        !isActive && !isCurrent && "bg-card border-border hover:border-accent/50",
+                        !isActive && isCurrent && "bg-accent/10 border-accent",
+                        disabled && "opacity-50 cursor-not-allowed"
+                      )}
+                    >
+                      {isGhost && isCurrent && (
+                        <div className="absolute inset-1 rounded bg-accent/20" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
-              {steps.map((stepNote, stepIndex) => {
-                const isActive = stepNote === note;
-                const isCurrent = currentStep === stepIndex;
-                const isGhost = !isActive;
-                
-                return (
-                  <button
-                    key={stepIndex}
-                    disabled={disabled}
-                    onClick={() => {
-                      if (isActive) {
-                        onStepClear(stepIndex);
-                      } else {
-                        onStepClick(stepIndex, note);
-                      }
-                    }}
-                    className={cn(
-                      "w-12 h-10 rounded border-2 transition-all relative",
-                      isActive && !isCurrent && "bg-accent border-accent",
-                      isActive && isCurrent && "bg-accent border-accent scale-110 shadow-lg",
-                      !isActive && !isCurrent && "bg-card border-border hover:border-accent/50",
-                      !isActive && isCurrent && "bg-accent/10 border-accent",
-                      disabled && "opacity-50 cursor-not-allowed"
-                    )}
-                  >
-                    {isGhost && isCurrent && (
-                      <div className="absolute inset-1 rounded bg-accent/20" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
