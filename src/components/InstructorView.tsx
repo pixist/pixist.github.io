@@ -13,7 +13,7 @@ import { PianoKeyboard } from './PianoKeyboard';
 import { StepSequencer } from './StepSequencer';
 import { RangeIndicator } from './RangeIndicator';
 import { RoomPresence } from './RoomPresence';
-import { MiniKeyboard } from './MiniKeyboard';
+import { FullPianoKeyboard } from './FullPianoKeyboard';
 import { Play, Stop, Record, ArrowsClockwise, GraduationCap, MusicNote } from '@phosphor-icons/react';
 import { Sequence, SequenceStep, InstructorState, TranspositionDirection, StudentPlaybackState } from '@/lib/types';
 import { getNotesBetween, playNoteByName, resumeAudioContext, WaveformType } from '@/lib/audioEngine';
@@ -307,10 +307,9 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t, lang
                   {studentStateShared.isPaused ? t.student.paused : t.student.playing}
                 </Badge>
               </div>
-              <MiniKeyboard
-                startNote={minNote}
-                endNote={maxNote}
+              <FullPianoKeyboard
                 currentNote={studentStateShared.currentNote}
+                upcomingNotes={[]}
               />
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>{Math.round(studentStateShared.progress)}%</span>
@@ -460,6 +459,9 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t, lang
                 onStepClick={handleStepClick}
                 onStepClear={handleStepClear}
                 availableNotes={availableNotes}
+                rootNote={rootNote}
+                minNote={minNote}
+                maxNote={maxNote}
                 disabled={isPlaying}
               />
             </TabsContent>
