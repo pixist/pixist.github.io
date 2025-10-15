@@ -8,21 +8,25 @@ import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { PianoKeyboard } from './PianoKeyboard';
 import { StepSequencer } from './StepSequencer';
+import { RangeIndicator } from './RangeIndicator';
 import { Play, Stop, Record, ArrowsClockwise, GraduationCap, MusicNote } from '@phosphor-icons/react';
 import { Sequence, SequenceStep } from '@/lib/types';
 import { getNotesBetween, playNoteByName, resumeAudioContext, WaveformType } from '@/lib/audioEngine';
+import { Translations } from '@/lib/i18n';
 import { toast } from 'sonner';
 
 interface InstructorViewProps {
+  roomId: string;
   onRoleChange: () => void;
   onSequenceCreate: (sequence: Sequence) => void;
+  t: Translations;
 }
 
 const WAVEFORMS: WaveformType[] = ['sine', 'square', 'triangle', 'sawtooth'];
 const ROOT_NOTES = ['C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3', 'C4'];
 const DEFAULT_STEPS = 16;
 
-export function InstructorView({ onRoleChange, onSequenceCreate }: InstructorViewProps) {
+export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: InstructorViewProps) {
   const [mode, setMode] = useState<'step' | 'realtime'>('step');
   const [rootNote, setRootNote] = useState('C3');
   const [minNote, setMinNote] = useState('E3');
@@ -78,7 +82,7 @@ export function InstructorView({ onRoleChange, onSequenceCreate }: InstructorVie
       : recordedSteps.map((step, i) => ({ ...step, index: i }));
 
     if (filledSteps.length === 0) {
-      toast.error('Add some notes first!');
+      toast.error(t.toasts.addNotes);
       return;
     }
 
@@ -124,14 +128,14 @@ export function InstructorView({ onRoleChange, onSequenceCreate }: InstructorVie
     
     if (isRecording) {
       setIsRecording(false);
-      toast.success(`Recorded ${recordedSteps.length} notes`);
+      toast.success(`${t.toasts.notesRecorded}: ${recordedSteps.length}`);
       return;
     }
 
     setRecordedSteps([]);
     setIsRecording(true);
     recordStartTimeRef.current = Date.now();
-    toast.info('Recording started - play notes on keyboard');
+    toast.info(t.toasts.recordingStarted);
   };
 
   const handleNotePress = (note: string) => {
@@ -164,7 +168,7 @@ export function InstructorView({ onRoleChange, onSequenceCreate }: InstructorVie
     }
 
     if (sequenceSteps.length === 0) {
-      toast.error('Create a sequence first!');
+      toast.error(t.toasts.addNotes);
       return;
     }
 
@@ -180,7 +184,7 @@ export function InstructorView({ onRoleChange, onSequenceCreate }: InstructorVie
     };
 
     onSequenceCreate(sequence);
-    toast.success('Sequence transmitted to student!');
+    toast.success(t.toasts.sequenceTransmitted);
   };
 
   const handleClear = () => {
@@ -194,31 +198,38 @@ export function InstructorView({ onRoleChange, onSequenceCreate }: InstructorVie
   return (
     <div className="min-h-screen p-4 bg-gradient-to-br from-background via-primary/5 to-background">
       <div className="max-w-6xl mx-auto space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
               <GraduationCap size={24} weight="duotone" className="text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Instructor Mode</h1>
-              <p className="text-sm text-muted-foreground">Create and transmit vocal exercises</p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold tracking-tight">{t.instructor.title}</h1>
+                <Badge variant="outline">{roomId}</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">{t.instructor.subtitle}</p>
             </div>
           </div>
           <Button variant="outline" onClick={onRoleChange}>
             <ArrowsClockwise className="mr-2" size={16} />
-            Switch Role
+            {t.roles.switchRole}
           </Button>
         </div>
 
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <MusicNote size={20} weight="duotone" />
-            <h2 className="text-lg font-semibold">Sequence Configuration</h2>
+            <h2 className="text-lg font-semibold">{t.instructor.sequenceConfig}</h2>
+          </div>
+
+          <div className="mb-6">
+            <RangeIndicator minNote={minNote} maxNote={maxNote} />
           </div>
 
           <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="space-y-2">
-              <Label>Root Note</Label>
+              <Label>{t.instructor.rootNote}</Label>
               <Select value={rootNote} onValueChange={setRootNote}>
                 <SelectTrigger>
                   <SelectValue />
@@ -232,7 +243,7 @@ export function InstructorView({ onRoleChange, onSequenceCreate }: InstructorVie
             </div>
 
             <div className="space-y-2">
-              <Label>Min Note</Label>
+              <Label>{t.instructor.minNote}</Label>
               <Select value={minNote} onValueChange={setMinNote}>
                 <SelectTrigger>
                   <SelectValue />
@@ -246,7 +257,7 @@ export function InstructorView({ onRoleChange, onSequenceCreate }: InstructorVie
             </div>
 
             <div className="space-y-2">
-              <Label>Max Note</Label>
+              <Label>{t.instructor.maxNote}</Label>
               <Select value={maxNote} onValueChange={setMaxNote}>
                 <SelectTrigger>
                   <SelectValue />
@@ -260,7 +271,7 @@ export function InstructorView({ onRoleChange, onSequenceCreate }: InstructorVie
             </div>
 
             <div className="space-y-2">
-              <Label>Waveform</Label>
+              <Label>{t.instructor.waveform}</Label>
               <Select value={waveform} onValueChange={(v) => setWaveform(v as WaveformType)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -278,8 +289,8 @@ export function InstructorView({ onRoleChange, onSequenceCreate }: InstructorVie
 
           <Tabs value={mode} onValueChange={(v) => setMode(v as 'step' | 'realtime')}>
             <TabsList className="mb-4">
-              <TabsTrigger value="step">Step Sequencer</TabsTrigger>
-              <TabsTrigger value="realtime">Real-time Recording</TabsTrigger>
+              <TabsTrigger value="step">{t.instructor.stepSequencer}</TabsTrigger>
+              <TabsTrigger value="realtime">{t.instructor.realtimeRecording}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="step" className="space-y-4">
@@ -296,14 +307,14 @@ export function InstructorView({ onRoleChange, onSequenceCreate }: InstructorVie
             <TabsContent value="realtime" className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
                 <div>
-                  <p className="font-medium">Recorded Notes</p>
+                  <p className="font-medium">{t.instructor.recordedNotes}</p>
                   <p className="text-sm text-muted-foreground">
-                    {recordedSteps.length} notes captured
+                    {recordedSteps.length} {t.instructor.notesCaptured}
                   </p>
                 </div>
                 {isRecording && (
                   <Badge variant="destructive" className="animate-pulse">
-                    Recording...
+                    {t.instructor.recording}
                   </Badge>
                 )}
               </div>
@@ -313,7 +324,7 @@ export function InstructorView({ onRoleChange, onSequenceCreate }: InstructorVie
           <Separator className="my-6" />
 
           <div>
-            <Label className="mb-2 block">Piano Keyboard</Label>
+            <Label className="mb-2 block">{t.instructor.pianoKeyboard}</Label>
             <PianoKeyboard
               startOctave={3}
               octaveCount={2}
@@ -330,12 +341,12 @@ export function InstructorView({ onRoleChange, onSequenceCreate }: InstructorVie
               {isPlaying ? (
                 <>
                   <Stop className="mr-2" size={16} weight="fill" />
-                  Stop Preview
+                  {t.instructor.stopPreview}
                 </>
               ) : (
                 <>
                   <Play className="mr-2" size={16} weight="fill" />
-                  Preview
+                  {t.instructor.preview}
                 </>
               )}
             </Button>
@@ -347,18 +358,18 @@ export function InstructorView({ onRoleChange, onSequenceCreate }: InstructorVie
                 disabled={isPlaying}
               >
                 <Record className="mr-2" size={16} weight={isRecording ? 'fill' : 'regular'} />
-                {isRecording ? 'Stop Recording' : 'Record'}
+                {isRecording ? t.instructor.stopRecording : t.instructor.record}
               </Button>
             )}
 
             <Button variant="outline" onClick={handleClear} disabled={isPlaying || isRecording}>
-              Clear
+              {t.instructor.clear}
             </Button>
 
             <div className="flex-1" />
 
             <Button onClick={handleTransmit} disabled={isPlaying || isRecording} className="bg-primary">
-              Transmit to Student
+              {t.instructor.transmit}
             </Button>
           </div>
         </Card>

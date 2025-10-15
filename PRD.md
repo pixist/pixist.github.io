@@ -1,23 +1,45 @@
 # Planning Guide
 
-A collaborative vocal training platform that enables remote music instruction by allowing instructors to program melodic sequences that play exclusively on the student's device, facilitating real-time vocal assessment over video calls.
+A collaborative vocal training platform that enables remote music instruction through room-based sessions where instructors and students can switch roles freely, with multi-language support and visual range indicators for effective vocal training over video calls.
 
 **Experience Qualities**:
 1. **Focused** - Interface prioritizes the essential controls needed for efficient vocal training sessions without clutter or distraction
 2. **Responsive** - Touch-optimized for mobile devices with immediate audio feedback and clear visual state changes
 3. **Intuitive** - Role-based interfaces that reveal only relevant controls, making the workflow instantly understandable
+4. **Collaborative** - Room-based sessions allow multiple users to join and switch roles dynamically
 
 **Complexity Level**: Light Application (multiple features with basic state)
-This is a focused tool with real-time audio synthesis, role management, sequence programming, and state persistence, but doesn't require accounts or complex data structures.
+This is a focused tool with real-time audio synthesis, room management, role management, multi-language support, sequence programming, and state persistence, but doesn't require accounts or complex data structures.
 
 ## Essential Features
 
-### Role Selection
-- **Functionality**: User chooses between Instructor or Student mode
-- **Purpose**: Determines which interface and controls are available, ensuring clean separation of responsibilities
-- **Trigger**: Initial app load or role switch button
-- **Progression**: Landing screen → Role selection cards → Role-specific interface
-- **Success criteria**: Correct interface displays with appropriate controls; role persists across sessions
+### Room Creation and Joining
+- **Functionality**: Users can create a new room or join an existing room by entering a room ID, with language selection at entry
+- **Purpose**: Establishes a shared training session context where instructor and student can collaborate
+- **Trigger**: App load
+- **Progression**: Landing screen → Language selection → Room ID input or create → Join room → Role selection
+- **Success criteria**: Room ID is generated/validated, users can share room codes, language preference is saved
+
+### Multi-Language Support
+- **Functionality**: Interface supports English, German (Deutsch), and Turkish (Türkçe) with expandable architecture
+- **Purpose**: Makes the tool accessible to international users and supports language learning contexts
+- **Trigger**: Language selector on room join screen
+- **Progression**: Select language → All UI updates to selected language → Preference persists
+- **Success criteria**: All text, labels, buttons, and messages display correctly in selected language; new languages can be added easily
+
+### Role Selection and Switching
+- **Functionality**: Users choose between Instructor or Student mode within a room and can switch roles freely
+- **Purpose**: Allows flexible session dynamics where roles can reverse (student becomes instructor for demonstration)
+- **Trigger**: After joining room, or via role switch button in any view
+- **Progression**: Join room → Role selection → Role-specific interface → Switch role button → Back to role selection
+- **Success criteria**: Correct interface displays with appropriate controls; role can be changed without leaving room; room ID remains visible
+
+### Visual Range Indicators
+- **Functionality**: Min and max notes are displayed with color-coded visual indicators showing the vocal range
+- **Purpose**: Provides clear visual feedback on the exercise's vocal range boundaries
+- **Trigger**: Whenever min/max notes are displayed
+- **Progression**: Instructor sets range → Visual indicators show min (red/down arrow) and max (blue/up arrow) → Student sees same indicators
+- **Success criteria**: Min note displayed with downward arrow in red tones, max note with upward arrow in blue tones, clear visual hierarchy
 
 ### Sequence Programming (Instructor Only)
 - **Functionality**: Two input modes - Step sequencer grid for precise note placement, or real-time recording that captures keyboard timing
@@ -27,11 +49,11 @@ This is a focused tool with real-time audio synthesis, role management, sequence
 - **Success criteria**: Sequence displays visually, can be edited, previewed locally, and transmitted to student
 
 ### Range Configuration (Instructor Only)
-- **Functionality**: Set starting note and range boundaries (e.g., E3 to E5) for sequence playback
-- **Purpose**: Transposes exercises to match student's vocal range
-- **Trigger**: Dropdown or slider controls after sequence creation
-- **Progression**: Program sequence → Set root note → Define min/max range → Transmit to student
-- **Success criteria**: Sequence plays in specified range, validates that range is musically sensible
+- **Functionality**: Set starting note and range boundaries (e.g., E3 to E5) for sequence playback with visual indicators
+- **Purpose**: Transposes exercises to match student's vocal range with clear visual feedback
+- **Trigger**: Dropdown controls in sequence configuration
+- **Progression**: Program sequence → Set root note → Define min/max range → See visual indicators → Transmit to student
+- **Success criteria**: Sequence plays in specified range, visual indicators update immediately, validates that range is musically sensible
 
 ### Audio Playback Control
 - **Functionality**: Student hears and can control playback of transmitted sequences; instructor can preview locally
@@ -50,11 +72,14 @@ This is a focused tool with real-time audio synthesis, role management, sequence
 ## Edge Case Handling
 
 - **No Audio Permission**: Graceful prompt explaining microphone isn't needed, only speakers
-- **Rapid Role Switching**: Prevent state conflicts by clearing sequence data on role change
+- **Rapid Role Switching**: Clear sequence context when switching roles to prevent confusion
+- **Room ID Conflicts**: Accept any room ID format, uppercase normalization
 - **Invalid Range Selection**: Validate that min < max and prevent sequences outside practical singing range
-- **Network Loss During Session**: Persist last transmitted sequence so student can continue practicing
+- **Network Loss During Session**: Persist room, role, and sequence data locally so users can rejoin seamlessly
 - **Sequence Too Long**: Limit to 32 steps or 30 seconds to prevent memory issues
-- **Multiple Tabs Open**: Warn user if they try to be both roles simultaneously
+- **Language Switching Mid-Session**: Allow language changes without losing room/role context
+- **Empty Room ID**: Create random 6-character room code automatically
+- **Leaving Room**: Provide clear exit path that clears all session data
 
 ## Design Direction
 

@@ -4,18 +4,22 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { RangeIndicator } from './RangeIndicator';
 import { Play, Stop, Repeat, ArrowsClockwise, User, MusicNote } from '@phosphor-icons/react';
 import { Sequence } from '@/lib/types';
 import { playNoteByName, resumeAudioContext } from '@/lib/audioEngine';
+import { Translations } from '@/lib/i18n';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 interface StudentViewProps {
+  roomId: string;
   sequence: Sequence | null;
   onRoleChange: () => void;
+  t: Translations;
 }
 
-export function StudentView({ sequence, onRoleChange }: StudentViewProps) {
+export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [loop, setLoop] = useState(false);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(-1);
@@ -30,9 +34,9 @@ export function StudentView({ sequence, onRoleChange }: StudentViewProps) {
 
   useEffect(() => {
     if (sequence) {
-      toast.success('New sequence received!');
+      toast.success(t.toasts.sequenceReceived);
     }
-  }, [sequence?.id]);
+  }, [sequence?.id, t.toasts.sequenceReceived]);
 
   const stopPlayback = () => {
     setIsPlaying(false);
@@ -44,7 +48,7 @@ export function StudentView({ sequence, onRoleChange }: StudentViewProps) {
 
   const playSequence = async () => {
     if (!sequence) {
-      toast.error('No sequence available');
+      toast.error(t.toasts.noSequence);
       return;
     }
 
@@ -92,19 +96,22 @@ export function StudentView({ sequence, onRoleChange }: StudentViewProps) {
   return (
     <div className="min-h-screen p-4 bg-gradient-to-br from-background via-student/5 to-background">
       <div className="max-w-4xl mx-auto space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-student flex items-center justify-center">
               <User size={24} weight="duotone" className="text-student-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Student Mode</h1>
-              <p className="text-sm text-muted-foreground">Practice with guided exercises</p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold tracking-tight">{t.student.title}</h1>
+                <Badge variant="outline">{roomId}</Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">{t.student.subtitle}</p>
             </div>
           </div>
           <Button variant="outline" onClick={onRoleChange}>
             <ArrowsClockwise className="mr-2" size={16} />
-            Switch Role
+            {t.roles.switchRole}
           </Button>
         </div>
 
@@ -115,9 +122,9 @@ export function StudentView({ sequence, onRoleChange }: StudentViewProps) {
                 <MusicNote size={32} weight="duotone" className="text-muted-foreground" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold mb-2">Waiting for Sequence</h2>
+                <h2 className="text-xl font-semibold mb-2">{t.student.waiting}</h2>
                 <p className="text-muted-foreground">
-                  Your instructor will transmit a vocal exercise sequence
+                  {t.student.waitingDesc}
                 </p>
               </div>
             </div>
@@ -127,20 +134,24 @@ export function StudentView({ sequence, onRoleChange }: StudentViewProps) {
             <Card className="p-6">
               <div className="flex items-center gap-2 mb-4">
                 <MusicNote size={20} weight="duotone" />
-                <h2 className="text-lg font-semibold">Current Sequence</h2>
+                <h2 className="text-lg font-semibold">{t.student.currentSequence}</h2>
+              </div>
+
+              <div className="mb-6">
+                <RangeIndicator minNote={sequence.minNote} maxNote={sequence.maxNote} />
               </div>
 
               <div className="grid sm:grid-cols-3 gap-4 mb-6">
                 <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Range</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t.student.range}</p>
                   <p className="font-semibold">{sequence.minNote} - {sequence.maxNote}</p>
                 </div>
                 <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Notes</p>
-                  <p className="font-semibold">{sequence.steps.length} notes</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t.student.notes}</p>
+                  <p className="font-semibold">{sequence.steps.length} {t.student.notes.toLowerCase()}</p>
                 </div>
                 <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Waveform</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t.student.waveform}</p>
                   <p className="font-semibold capitalize">{sequence.waveform}</p>
                 </div>
               </div>
@@ -148,10 +159,10 @@ export function StudentView({ sequence, onRoleChange }: StudentViewProps) {
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <Label>Progress</Label>
+                    <Label>{t.student.progress}</Label>
                     {isPlaying && (
                       <Badge variant="secondary" className="animate-pulse">
-                        Playing
+                        {t.student.playing}
                       </Badge>
                     )}
                   </div>
@@ -187,10 +198,10 @@ export function StudentView({ sequence, onRoleChange }: StudentViewProps) {
                   />
                   <div className="flex-1">
                     <Label htmlFor="loop" className="cursor-pointer">
-                      Loop Playback
+                      {t.student.loop}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Automatically repeat the sequence
+                      {t.student.loopDesc}
                     </p>
                   </div>
                   <Repeat size={24} weight={loop ? 'fill' : 'regular'} className="text-muted-foreground" />
@@ -208,12 +219,12 @@ export function StudentView({ sequence, onRoleChange }: StudentViewProps) {
                   {isPlaying ? (
                     <>
                       <Stop className="mr-2" size={20} weight="fill" />
-                      Stop
+                      {t.student.stop}
                     </>
                   ) : (
                     <>
                       <Play className="mr-2" size={20} weight="fill" />
-                      Play Sequence
+                      {t.student.play}
                     </>
                   )}
                 </Button>
@@ -224,11 +235,11 @@ export function StudentView({ sequence, onRoleChange }: StudentViewProps) {
 
         <Card className="p-4 bg-muted/50">
           <div className="text-sm text-muted-foreground">
-            <p className="font-medium mb-1">💡 Practice Tips:</p>
+            <p className="font-medium mb-1">{t.student.practiceTips}</p>
             <ul className="list-disc list-inside space-y-1">
-              <li>Listen to the sequence first before attempting to sing</li>
-              <li>Use loop mode to practice difficult patterns</li>
-              <li>Your instructor can hear you via video call while the sequence plays</li>
+              <li>{t.student.tip1}</li>
+              <li>{t.student.tip2}</li>
+              <li>{t.student.tip3}</li>
             </ul>
           </div>
         </Card>
