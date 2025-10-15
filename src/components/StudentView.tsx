@@ -209,11 +209,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
             setCurrentNoteIndex(-1);
             
             if (startCycle + 1 >= cycles.length) {
-              if (loop) {
-                setWaitingForNext(true);
-              } else {
-                stopPlayback();
-              }
+              stopPlayback();
             } else {
               setWaitingForNext(true);
             }
@@ -306,12 +302,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
     if (cycleMode && waitingForNext) {
       const nextCycle = currentCycle + 1;
       if (nextCycle >= totalCycles) {
-        if (loop) {
-          setWaitingForNext(false);
-          playCycleByDycle(0);
-        } else {
-          stopPlayback();
-        }
+        stopPlayback();
       } else {
         setWaitingForNext(false);
         playCycleByDycle(nextCycle);
@@ -439,7 +430,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
                   )}
                   {waitingForNext && (
                     <Badge variant="outline" className="animate-pulse">
-                      {currentCycle + 1 >= totalCycles && !loop ? t.student.lastCycleComplete : t.student.cycleComplete}
+                      {currentCycle + 1 >= totalCycles ? t.student.lastCycleComplete : t.student.cycleComplete}
                     </Badge>
                   )}
                   {isPaused && (
@@ -605,10 +596,10 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
                         <Button
                           size="lg"
                           onClick={handleSkip}
-                          className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground animate-pulse"
+                          className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground"
                         >
                           <SkipForward className="mr-2" size={20} weight="fill" />
-                          {t.student.next}
+                          {currentCycle + 1 >= totalCycles ? t.student.stop : t.student.next}
                         </Button>
                       </>
                     ) : (
