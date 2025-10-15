@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RangeIndicator } from './RangeIndicator';
 import { RoomPresence } from './RoomPresence';
 import { FullPianoKeyboard } from './FullPianoKeyboard';
-import { Play, Stop, Pause, SkipForward, X, Repeat, ArrowsClockwise, User, MusicNote, PlayCircle } from '@phosphor-icons/react';
+import { Play, Stop, Pause, SkipForward, X, Repeat, ArrowsClockwise, User, MusicNote, PlayCircle, ArrowCounterClockwise } from '@phosphor-icons/react';
 import { Sequence, StudentPlaybackState } from '@/lib/types';
 import { playNoteByName, resumeAudioContext } from '@/lib/audioEngine';
 import { Translations, Language } from '@/lib/i18n';
@@ -158,55 +158,52 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
     if (!sequence || cycleStepsRef.current.length === 0) return;
     
     const cycles = cycleStepsRef.current;
-    let cycleIndex = startCycle;
+    setCurrentCycle(startCycle);
+    setWaitingForNext(false);
     
-    const playNextCycle = () => {
-      if (cycleIndex >= cycles.length) {
-        if (loop) {
-          cycleIndex = 0;
-          playNextCycle();
-        } else {
-          stopPlayback();
-        }
-        return;
-      }
-      
-      setCurrentCycle(cycleIndex);
-      setWaitingForNext(false);
-      const cycleSteps = cycles[cycleIndex];
-      const stepsInCycle = cycleSteps.map(idx => sequence.steps[idx]);
-      
-      timeoutsRef.current = [];
-      
-      stepsInCycle.forEach((step, relativeIndex) => {
-        const absoluteIndex = cycleSteps[relativeIndex];
-        const timeout = setTimeout(() => {
-          playNoteByName(step.note, step.duration, sequence.waveform);
-          setCurrentNoteIndex(absoluteIndex);
-          setCurrentNote(step.note);
-          
-          const cycleProgress = ((cycleIndex + 1) / cycles.length) * 100;
-          setProgress(cycleProgress);
-          
-          setTimeout(() => {
-            setCurrentNote(null);
-          }, step.duration * 1000);
-          
-          if (relativeIndex === stepsInCycle.length - 1) {
-            setTimeout(() => {
-              setCurrentNoteIndex(-1);
-              setWaitingForNext(true);
-            }, step.duration * 1000);
-          }
-        }, step.timestamp);
+    const cycleSteps = cycles[startCycle];
+    if (!cycleSteps) {
+      stopPlayback();
+      return;
+    }
+    
+    const stepsInCycle = cycleSteps.map(idx => sequence.steps[idx]);
+    
+    timeoutsRef.current = [];
+    
+    stepsInCycle.forEach((step, relativeIndex) => {
+      const absoluteIndex = cycleSteps[relativeIndex];
+      const timeout = setTimeout(() => {
+        playNoteByName(step.note, step.duration, sequence.waveform);
+        setCurrentNoteIndex(absoluteIndex);
+        setCurrentNote(step.note);
         
-        timeoutsRef.current.push(timeout);
-      });
+        const cycleProgress = ((startCycle + 1) / cycles.length) * 100;
+        setProgress(cycleProgress);
+        
+        setTimeout(() => {
+          setCurrentNote(null);
+        }, step.duration * 1000);
+        
+        if (relativeIndex === stepsInCycle.length - 1) {
+          setTimeout(() => {
+            setCurrentNoteIndex(-1);
+            
+            if (startCycle + 1 >= cycles.length) {
+              if (loop) {
+                setWaitingForNext(true);
+              } else {
+                stopPlayback();
+              }
+            } else {
+              setWaitingForNext(true);
+            }
+          }, step.duration * 1000);
+        }
+      }, step.timestamp);
       
-      cycleIndex++;
-    };
-    
-    playNextCycle();
+      timeoutsRef.current.push(timeout);
+    });
   };
 
   const playContinuous = (offset = 0) => {
@@ -288,14 +285,36 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
     if (!sequence) return;
     
     if (cycleMode && waitingForNext) {
-      setWaitingForNext(false);
-      playCycleByDycle(currentCycle);
+      const nextCycle = currentCycle + 1;
+      if (nextCycle >= totalCycles) {
+        if (loop) {
+          setWaitingForNext(false);
+          playCycleByDycle(0);
+        } else {
+          stopPlayback();
+        }
+      } else {
+        setWaitingForNext(false);
+        playCycleByDycle(nextCycle);
+      }
     } else {
       stopPlayback();
       setTimeout(() => {
         playSequence();
       }, 100);
     }
+  };
+
+  const handleRepeatCycle = () => {
+    if (!cycleMode || !waitingForNext) return;
+    setWaitingForNext(false);
+    playCycleByDycle(currentCycle);
+  };
+
+  const handlePreviousCycle = () => {
+    if (!cycleMode || !waitingForNext || currentCycle === 0) return;
+    setWaitingForNext(false);
+    playCycleByDycle(currentCycle - 1);
   };
 
   const studentState: StudentPlaybackState = {
@@ -401,7 +420,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
                   )}
                   {waitingForNext && (
                     <Badge variant="outline" className="animate-pulse">
-                      Press Next →
+                      {currentCycle + 1 >= totalCycles && !loop ? 'Last Cycle Complete' : 'Cycle Complete - Choose Action'}
                     </Badge>
                   )}
                   {isPaused && (
@@ -508,14 +527,35 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
                 {isPlaying && (
                   <div className="flex gap-2">
                     {cycleMode && waitingForNext ? (
-                      <Button
-                        size="lg"
-                        onClick={handleSkip}
-                        className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground animate-pulse"
-                      >
-                        <SkipForward className="mr-2" size={20} weight="fill" />
-                        Next Cycle
-                      </Button>
+                      <>
+                        <Button
+                          size="lg"
+                          onClick={handlePreviousCycle}
+                          disabled={currentCycle === 0}
+                          variant="outline"
+                          className="flex-1"
+                        >
+                          <ArrowCounterClockwise className="mr-2" size={20} weight="fill" />
+                          Previous
+                        </Button>
+                        <Button
+                          size="lg"
+                          onClick={handleRepeatCycle}
+                          variant="outline"
+                          className="flex-1"
+                        >
+                          <Repeat className="mr-2" size={20} weight="fill" />
+                          Repeat
+                        </Button>
+                        <Button
+                          size="lg"
+                          onClick={handleSkip}
+                          className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground animate-pulse"
+                        >
+                          <SkipForward className="mr-2" size={20} weight="fill" />
+                          Next
+                        </Button>
+                      </>
                     ) : (
                       <Button
                         size="lg"
