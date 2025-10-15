@@ -15,7 +15,7 @@ import { RangeIndicator } from './RangeIndicator';
 import { RoomPresence } from './RoomPresence';
 import { FullPianoKeyboard } from './FullPianoKeyboard';
 import { Play, Stop, Record, ArrowsClockwise, GraduationCap, MusicNote } from '@phosphor-icons/react';
-import { Sequence, SequenceStep, InstructorState, TranspositionDirection, StudentPlaybackState } from '@/lib/types';
+import { Sequence, SequenceStep, InstructorState, TranspositionDirection, StudentPlaybackState, RoomSettings } from '@/lib/types';
 import { getNotesBetween, playNoteByName, resumeAudioContext, WaveformType } from '@/lib/audioEngine';
 import { Translations, Language } from '@/lib/i18n';
 import { generateTransposedSequences } from '@/lib/utils';
@@ -45,11 +45,27 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t, lang
   const [rootNote, setRootNote] = useState('C3');
   const [minNote, setMinNote] = useState('E3');
   const [maxNote, setMaxNote] = useState('E5');
-  const [waveform, setWaveform] = useState<WaveformType>('sine');
-  const [bpm, setBpm] = useState(120);
   const [restDuration, setRestDuration] = useState(2);
   const [stepCount, setStepCount] = useState(DEFAULT_STEPS);
   const [transpositionDirection, setTranspositionDirection] = useState<TranspositionDirection>('both-ways');
+  
+  const [roomSettings, setRoomSettings] = useKV<RoomSettings>(`room-${roomId}-settings`, {
+    bpm: 120,
+    waveform: 'sine',
+    timestamp: Date.now(),
+  });
+
+  const waveform = roomSettings?.waveform || 'sine';
+  const bpm = roomSettings?.bpm || 120;
+
+  const updateRoomSettings = (updates: Partial<Omit<RoomSettings, 'timestamp'>>) => {
+    setRoomSettings((current) => ({
+      bpm: current?.bpm || 120,
+      waveform: current?.waveform || 'sine',
+      ...updates,
+      timestamp: Date.now(),
+    }));
+  };
   
   const [steps, setSteps] = useState<Array<string | null>>(Array(DEFAULT_STEPS).fill(null));
   const [currentStep, setCurrentStep] = useState(-1);
@@ -331,6 +347,39 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t, lang
             <RangeIndicator minNote={minNote} maxNote={maxNote} />
           </div>
 
+          <div className="mb-6 p-4 bg-muted/50 rounded-lg space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold">{t.student.roomSettings}</h3>
+              <p className="text-xs text-muted-foreground">{t.student.roomSettingsDesc}</p>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{t.instructor.instrument}</Label>
+                <Select value={waveform} onValueChange={(v) => updateRoomSettings({ waveform: v as WaveformType })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INSTRUMENTS.map(inst => (
+                      <SelectItem key={inst.value} value={inst.value}>{inst.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{t.instructor.bpm}: {bpm}</Label>
+                <Slider
+                  value={[bpm]}
+                  onValueChange={([value]) => updateRoomSettings({ bpm: value })}
+                  min={40}
+                  max={200}
+                  step={5}
+                  className="pt-2"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
             <div className="space-y-2">
               <Label>{t.instructor.rootNote}</Label>
@@ -388,20 +437,6 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t, lang
             </div>
 
             <div className="space-y-2">
-              <Label>{t.instructor.instrument}</Label>
-              <Select value={waveform} onValueChange={(v) => setWaveform(v as WaveformType)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {INSTRUMENTS.map(inst => (
-                    <SelectItem key={inst.value} value={inst.value}>{inst.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
               <Label>{t.instructor.stepCount}</Label>
               <Input
                 type="number"
@@ -415,18 +450,6 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t, lang
                 min={1}
                 max={64}
                 disabled={isPlaying || isRecording}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>{t.instructor.bpm}: {bpm}</Label>
-              <Slider
-                value={[bpm]}
-                onValueChange={([value]) => setBpm(value)}
-                min={40}
-                max={200}
-                step={5}
-                className="pt-2"
               />
             </div>
 

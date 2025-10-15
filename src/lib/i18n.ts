@@ -83,6 +83,15 @@ export interface Translations {
     instructorActive: string;
     instructorRecording: string;
     instructorPlaying: string;
+    roomSettings: string;
+    roomSettingsDesc: string;
+    cycleByCycle: string;
+    continuous: string;
+    next: string;
+    previous: string;
+    repeat: string;
+    cycleComplete: string;
+    lastCycleComplete: string;
   };
   toasts: {
     addNotes: string;
@@ -180,6 +189,15 @@ const en: Translations = {
     instructorActive: 'Instructor is in the room',
     instructorRecording: 'Instructor is recording',
     instructorPlaying: 'Instructor is previewing',
+    roomSettings: 'Room Settings',
+    roomSettingsDesc: 'These settings are shared with everyone in the room',
+    cycleByCycle: 'Cycle-by-Cycle',
+    continuous: 'Continuous',
+    next: 'Next',
+    previous: 'Previous',
+    repeat: 'Repeat',
+    cycleComplete: 'Cycle Complete - Choose Action',
+    lastCycleComplete: 'Last Cycle Complete',
   },
   toasts: {
     addNotes: 'Add some notes first!',
@@ -277,6 +295,15 @@ const de: Translations = {
     instructorActive: 'Trainer ist im Raum',
     instructorRecording: 'Trainer nimmt auf',
     instructorPlaying: 'Trainer spielt Vorschau',
+    roomSettings: 'Raumeinstellungen',
+    roomSettingsDesc: 'Diese Einstellungen werden mit allen im Raum geteilt',
+    cycleByCycle: 'Zyklus für Zyklus',
+    continuous: 'Kontinuierlich',
+    next: 'Weiter',
+    previous: 'Zurück',
+    repeat: 'Wiederholen',
+    cycleComplete: 'Zyklus vollständig - Aktion wählen',
+    lastCycleComplete: 'Letzter Zyklus vollständig',
   },
   toasts: {
     addNotes: 'Fügen Sie zuerst Noten hinzu!',
@@ -374,6 +401,15 @@ const tr: Translations = {
     instructorActive: 'Eğitmen odada',
     instructorRecording: 'Eğitmen kaydediyor',
     instructorPlaying: 'Eğitmen önizliyor',
+    roomSettings: 'Oda Ayarları',
+    roomSettingsDesc: 'Bu ayarlar odadaki herkesle paylaşılır',
+    cycleByCycle: 'Döngü Döngü',
+    continuous: 'Sürekli',
+    next: 'Sonraki',
+    previous: 'Önceki',
+    repeat: 'Tekrarla',
+    cycleComplete: 'Döngü Tamamlandı - Eylem Seçin',
+    lastCycleComplete: 'Son Döngü Tamamlandı',
   },
   toasts: {
     addNotes: 'Önce notalar ekleyin!',

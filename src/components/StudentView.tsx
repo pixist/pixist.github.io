@@ -6,12 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { RangeIndicator } from './RangeIndicator';
 import { RoomPresence } from './RoomPresence';
 import { FullPianoKeyboard } from './FullPianoKeyboard';
 import { Play, Stop, Pause, SkipForward, X, Repeat, ArrowsClockwise, User, MusicNote, PlayCircle, ArrowCounterClockwise } from '@phosphor-icons/react';
-import { Sequence, StudentPlaybackState } from '@/lib/types';
-import { playNoteByName, resumeAudioContext } from '@/lib/audioEngine';
+import { Sequence, StudentPlaybackState, RoomSettings } from '@/lib/types';
+import { playNoteByName, resumeAudioContext, WaveformType } from '@/lib/audioEngine';
 import { Translations, Language } from '@/lib/i18n';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -41,6 +42,24 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
   const remainingTimeRef = useRef<number>(0);
   const currentIterationRef = useRef<number>(0);
   const cycleStepsRef = useRef<number[][]>([]);
+
+  const [roomSettings, setRoomSettings] = useKV<RoomSettings>(`room-${roomId}-settings`, {
+    bpm: 120,
+    waveform: 'sine',
+    timestamp: Date.now(),
+  });
+
+  const waveform = roomSettings?.waveform || sequence?.waveform || 'sine';
+  const bpm = roomSettings?.bpm || sequence?.bpm || 120;
+
+  const updateRoomSettings = (updates: Partial<Omit<RoomSettings, 'timestamp'>>) => {
+    setRoomSettings((current) => ({
+      bpm: current?.bpm || 120,
+      waveform: current?.waveform || 'sine',
+      ...updates,
+      timestamp: Date.now(),
+    }));
+  };
 
   const upcomingNotes = useMemo(() => {
     if (!sequence || !isPlaying || currentNoteIndex < 0) return [];
@@ -174,7 +193,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
     stepsInCycle.forEach((step, relativeIndex) => {
       const absoluteIndex = cycleSteps[relativeIndex];
       const timeout = setTimeout(() => {
-        playNoteByName(step.note, step.duration, sequence.waveform);
+        playNoteByName(step.note, step.duration, waveform);
         setCurrentNoteIndex(absoluteIndex);
         setCurrentNote(step.note);
         
@@ -218,7 +237,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
         if (adjustedTimestamp < 0) return;
 
         const timeout = setTimeout(() => {
-          playNoteByName(step.note, step.duration, sequence.waveform);
+          playNoteByName(step.note, step.duration, waveform);
           setCurrentNoteIndex(index);
           setCurrentNote(step.note);
           
@@ -420,7 +439,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
                   )}
                   {waitingForNext && (
                     <Badge variant="outline" className="animate-pulse">
-                      {currentCycle + 1 >= totalCycles && !loop ? 'Last Cycle Complete' : 'Cycle Complete - Choose Action'}
+                      {currentCycle + 1 >= totalCycles && !loop ? t.student.lastCycleComplete : t.student.cycleComplete}
                     </Badge>
                   )}
                   {isPaused && (
@@ -443,6 +462,42 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
                 <div className="p-3 bg-muted rounded-lg">
                   <p className="text-xs text-muted-foreground mb-1">{t.student.waveform}</p>
                   <p className="font-semibold capitalize">{sequence.waveform}</p>
+                </div>
+              </div>
+
+              <div className="space-y-3 mb-6">
+                <div className="p-4 bg-card border rounded-lg space-y-3">
+                  <div>
+                    <h3 className="text-sm font-semibold">{t.student.roomSettings}</h3>
+                    <p className="text-xs text-muted-foreground">{t.student.roomSettingsDesc}</p>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>{t.instructor.instrument}</Label>
+                      <Select value={waveform} onValueChange={(v) => updateRoomSettings({ waveform: v as WaveformType })}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sine">Pure Tone</SelectItem>
+                          <SelectItem value="triangle">Soft</SelectItem>
+                          <SelectItem value="square">Bright</SelectItem>
+                          <SelectItem value="sawtooth">Rich</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t.instructor.bpm}: {bpm}</Label>
+                      <Slider
+                        value={[bpm]}
+                        onValueChange={([value]) => updateRoomSettings({ bpm: value })}
+                        min={40}
+                        max={200}
+                        step={5}
+                        className="pt-2"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -494,7 +549,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
                     )}
                   >
                     <PlayCircle className="mr-2" size={20} weight="fill" />
-                    Cycle-by-Cycle
+                    {t.student.cycleByCycle}
                   </Button>
 
                   <Button
@@ -520,7 +575,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
                     )}
                   >
                     <Play className="mr-2" size={20} weight="fill" />
-                    Continuous
+                    {t.student.continuous}
                   </Button>
                 </div>
 
@@ -536,7 +591,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
                           className="flex-1"
                         >
                           <ArrowCounterClockwise className="mr-2" size={20} weight="fill" />
-                          Previous
+                          {t.student.previous}
                         </Button>
                         <Button
                           size="lg"
@@ -545,7 +600,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
                           className="flex-1"
                         >
                           <Repeat className="mr-2" size={20} weight="fill" />
-                          Repeat
+                          {t.student.repeat}
                         </Button>
                         <Button
                           size="lg"
@@ -553,7 +608,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
                           className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground animate-pulse"
                         >
                           <SkipForward className="mr-2" size={20} weight="fill" />
-                          Next
+                          {t.student.next}
                         </Button>
                       </>
                     ) : (

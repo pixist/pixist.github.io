@@ -52,3 +52,9 @@ export interface InstructorState {
   currentStep: number;
   timestamp: number;
 }
+
+export interface RoomSettings {
+  bpm: number;
+  waveform: WaveformType;
+  timestamp: number;
+}
