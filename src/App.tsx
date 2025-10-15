@@ -16,6 +16,10 @@ function App() {
 
   const t = getTranslation(language || 'en');
 
+  const handleLanguageChange = (newLanguage: Language) => {
+    setLanguage(newLanguage);
+  };
+
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.key === ' ' && !e.repeat) {
@@ -85,6 +89,8 @@ function App() {
           onRoleChange={handleRoleChange}
           onSequenceCreate={handleSequenceCreate}
           t={t}
+          language={language || 'en'}
+          onLanguageChange={handleLanguageChange}
         />
       ) : (
         <StudentView
@@ -92,6 +98,8 @@ function App() {
           sequence={sharedSequence ?? null}
           onRoleChange={handleRoleChange}
           t={t}
+          language={language || 'en'}
+          onLanguageChange={handleLanguageChange}
         />
       )}
       <Toaster position="top-center" />

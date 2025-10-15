@@ -17,7 +17,7 @@ import { MiniKeyboard } from './MiniKeyboard';
 import { Play, Stop, Record, ArrowsClockwise, GraduationCap, MusicNote } from '@phosphor-icons/react';
 import { Sequence, SequenceStep, InstructorState, TranspositionDirection, StudentPlaybackState } from '@/lib/types';
 import { getNotesBetween, playNoteByName, resumeAudioContext, WaveformType } from '@/lib/audioEngine';
-import { Translations } from '@/lib/i18n';
+import { Translations, Language } from '@/lib/i18n';
 import { generateTransposedSequences } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -26,6 +26,8 @@ interface InstructorViewProps {
   onRoleChange: () => void;
   onSequenceCreate: (sequence: Sequence) => void;
   t: Translations;
+  language: Language;
+  onLanguageChange: (language: Language) => void;
 }
 
 const WAVEFORMS: WaveformType[] = ['sine', 'square', 'triangle', 'sawtooth'];
@@ -38,7 +40,7 @@ const INSTRUMENTS = [
 const ROOT_NOTES = ['C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3', 'C4'];
 const DEFAULT_STEPS = 16;
 
-export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: InstructorViewProps) {
+export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t, language, onLanguageChange }: InstructorViewProps) {
   const [mode, setMode] = useState<'step' | 'realtime'>('step');
   const [rootNote, setRootNote] = useState('C3');
   const [minNote, setMinNote] = useState('E3');
@@ -276,10 +278,22 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
               <p className="text-sm text-muted-foreground">{t.instructor.subtitle}</p>
             </div>
           </div>
-          <Button variant="outline" onClick={onRoleChange}>
-            <ArrowsClockwise className="mr-2" size={16} />
-            {t.roles.switchRole}
-          </Button>
+          <div className="flex gap-2">
+            <Select value={language} onValueChange={(v) => onLanguageChange(v as Language)}>
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="en">🇬🇧 EN</SelectItem>
+                <SelectItem value="de">🇩🇪 DE</SelectItem>
+                <SelectItem value="tr">🇹🇷 TR</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={onRoleChange}>
+              <ArrowsClockwise className="mr-2" size={16} />
+              {t.roles.switchRole}
+            </Button>
+          </div>
         </div>
 
         <RoomPresence roomId={roomId} currentRole="instructor" t={t} instructorState={instructorState} />

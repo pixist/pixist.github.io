@@ -1,16 +1,18 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useKV } from '@github/spark/hooks';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RangeIndicator } from './RangeIndicator';
 import { RoomPresence } from './RoomPresence';
+import { FullPianoKeyboard } from './FullPianoKeyboard';
 import { Play, Stop, Pause, SkipForward, X, Repeat, ArrowsClockwise, User, MusicNote } from '@phosphor-icons/react';
 import { Sequence, StudentPlaybackState } from '@/lib/types';
 import { playNoteByName, resumeAudioContext } from '@/lib/audioEngine';
-import { Translations } from '@/lib/i18n';
+import { Translations, Language } from '@/lib/i18n';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -19,9 +21,11 @@ interface StudentViewProps {
   sequence: Sequence | null;
   onRoleChange: () => void;
   t: Translations;
+  language: Language;
+  onLanguageChange: (language: Language) => void;
 }
 
-export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewProps) {
+export function StudentView({ roomId, sequence, onRoleChange, t, language, onLanguageChange }: StudentViewProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [loop, setLoop] = useState(false);
@@ -32,6 +36,22 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
   const pauseTimeRef = useRef<number>(0);
   const remainingTimeRef = useRef<number>(0);
   const currentIterationRef = useRef<number>(0);
+
+  const upcomingNotes = useMemo(() => {
+    if (!sequence || !isPlaying || currentNoteIndex < 0) return [];
+    
+    const lookAheadCount = 10;
+    const upcoming: string[] = [];
+    
+    for (let i = currentNoteIndex + 1; i < Math.min(currentNoteIndex + lookAheadCount, sequence.steps.length); i++) {
+      const note = sequence.steps[i]?.note;
+      if (note && !upcoming.includes(note)) {
+        upcoming.push(note);
+      }
+    }
+    
+    return upcoming;
+  }, [sequence, isPlaying, currentNoteIndex]);
 
   const [, setStudentState] = useKV<StudentPlaybackState>(`room-${roomId}-student-state`, {
     isPlaying: false,
@@ -201,10 +221,22 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
               <p className="text-sm text-muted-foreground">{t.student.subtitle}</p>
             </div>
           </div>
-          <Button variant="outline" onClick={onRoleChange}>
-            <ArrowsClockwise className="mr-2" size={16} />
-            {t.roles.switchRole}
-          </Button>
+          <div className="flex gap-2">
+            <Select value={language} onValueChange={(v) => onLanguageChange(v as Language)}>
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="en">🇬🇧 EN</SelectItem>
+                <SelectItem value="de">🇩🇪 DE</SelectItem>
+                <SelectItem value="tr">🇹🇷 TR</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={onRoleChange}>
+              <ArrowsClockwise className="mr-2" size={16} />
+              {t.roles.switchRole}
+            </Button>
+          </div>
         </div>
 
         <RoomPresence roomId={roomId} currentRole="student" t={t} studentState={studentState} />
@@ -235,6 +267,39 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
                 <RangeIndicator minNote={sequence.minNote} maxNote={sequence.maxNote} />
               </div>
 
+              <div className="mb-6">
+                <Label className="mb-2 block">{t.student.progress}</Label>
+                <FullPianoKeyboard 
+                  currentNote={currentNote}
+                  upcomingNotes={upcomingNotes}
+                  className="mb-4"
+                />
+                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-student transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-sm text-muted-foreground">{Math.round(progress)}%</span>
+                  {currentNote && (
+                    <Badge variant="secondary" className="font-mono">
+                      {currentNote}
+                    </Badge>
+                  )}
+                  {isPlaying && !isPaused && (
+                    <Badge variant="secondary" className="animate-pulse">
+                      {t.student.playing}
+                    </Badge>
+                  )}
+                  {isPaused && (
+                    <Badge variant="outline">
+                      {t.student.paused}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
               <div className="grid sm:grid-cols-3 gap-4 mb-6">
                 <div className="p-3 bg-muted rounded-lg">
                   <p className="text-xs text-muted-foreground mb-1">{t.student.range}</p>
@@ -251,43 +316,6 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Label>{t.student.progress}</Label>
-                    {isPlaying && !isPaused && (
-                      <Badge variant="secondary" className="animate-pulse">
-                        {t.student.playing}
-                      </Badge>
-                    )}
-                    {isPaused && (
-                      <Badge variant="outline">
-                        {t.student.paused}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-student transition-all duration-300"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg overflow-x-auto">
-                  {sequence.steps.map((step, index) => (
-                    <div
-                      key={index}
-                      className={cn(
-                        "flex-shrink-0 w-12 h-12 rounded-md border-2 flex items-center justify-center text-xs font-medium transition-all",
-                        currentNoteIndex === index && "bg-student border-student text-student-foreground scale-110 shadow-lg",
-                        currentNoteIndex !== index && "bg-card border-border text-muted-foreground"
-                      )}
-                    >
-                      {step.note}
-                    </div>
-                  ))}
-                </div>
-
                 <div className="flex items-center gap-4 p-4 bg-muted rounded-lg">
                   <Switch
                     id="loop"
