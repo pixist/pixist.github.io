@@ -12,7 +12,7 @@ function App() {
   const [roomId, setRoomId] = useKV<string | null>('room-id', null);
   const [language, setLanguage] = useKV<Language>('language', 'en');
   const [role, setRole] = useKV<Role>('user-role', null);
-  const [sequence, setSequence] = useKV<Sequence | null>('current-sequence', null);
+  const [sharedSequence, setSharedSequence] = useKV<Sequence | null>('shared-sequence', null);
 
   const t = getTranslation(language || 'en');
 
@@ -31,13 +31,13 @@ function App() {
     setRoomId(newRoomId);
     setLanguage(newLanguage);
     setRole(null);
-    setSequence(null);
+    setSharedSequence(null);
   };
 
   const handleLeaveRoom = () => {
     setRoomId(null);
     setRole(null);
-    setSequence(null);
+    setSharedSequence(null);
   };
 
   const handleRoleChange = () => {
@@ -45,8 +45,14 @@ function App() {
   };
 
   const handleSequenceCreate = (newSequence: Sequence) => {
-    setSequence(newSequence);
+    setSharedSequence(newSequence);
   };
+
+  useEffect(() => {
+    if (roomId && sharedSequence) {
+      setSharedSequence(sharedSequence);
+    }
+  }, [roomId, sharedSequence, setSharedSequence]);
 
   if (!roomId) {
     return (
@@ -83,7 +89,7 @@ function App() {
       ) : (
         <StudentView
           roomId={roomId}
-          sequence={sequence ?? null}
+          sequence={sharedSequence ?? null}
           onRoleChange={handleRoleChange}
           t={t}
         />

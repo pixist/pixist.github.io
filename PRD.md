@@ -41,12 +41,60 @@ This is a focused tool with real-time audio synthesis, room management, role man
 - **Progression**: Instructor sets range → Visual indicators show min (red/down arrow) and max (blue/up arrow) → Student sees same indicators
 - **Success criteria**: Min note displayed with downward arrow in red tones, max note with upward arrow in blue tones, clear visual hierarchy
 
+### Room Presence and Activity Monitoring
+- **Functionality**: Real-time display of active users in room (instructors and students) with live activity status
+- **Purpose**: Provides awareness of who's in the session and what they're currently doing for better coordination
+- **Trigger**: Automatic when user enters room, updates every 5 seconds
+- **Progression**: Join room → Presence appears in room → Status updates (recording, playing, idle) → Shows on both sides → Auto-cleanup after 15s
+- **Success criteria**: Both instructor and student can see each other's presence, activity states sync in real-time, stale presence auto-removed
+
+### Interactive Sequence Creation
+- **Functionality**: Instructor hears notes immediately when clicking sequencer cells or pressing piano keys during creation
+- **Purpose**: Provides instant audio feedback while composing, making sequence creation more musical and intuitive
+- **Trigger**: Any note input action (sequencer click, piano key press)
+- **Progression**: Click sequencer cell → Hear note immediately → Visual feedback → Continue composing
+- **Success criteria**: Notes play instantly (<100ms), audio matches selected instrument, disabled during preview playback
+
+### Instrument Selection
+- **Functionality**: Choose from different waveform types (Pure Tone, Soft, Bright, Rich) that change the character of the synthesized sound
+- **Purpose**: Allows vocal exercises to use different timbres, helping students match different voice qualities
+- **Trigger**: Instrument selector in sequence configuration
+- **Progression**: Select instrument → Preview plays with new sound → Student receives sequence with instrument → Plays with correct timbre
+- **Success criteria**: Instrument changes apply to both preview and transmitted sequence, each waveform has distinct character
+
+### BPM (Tempo) Control
+- **Functionality**: Slider control to adjust sequence playback speed from 40-200 BPM
+- **Purpose**: Allows exercises to be performed at different tempos for practice progression (slow → fast)
+- **Trigger**: BPM slider adjustment
+- **Progression**: Set BPM → Preview reflects tempo → Transmit → Student receives at correct tempo
+- **Success criteria**: BPM displayed as numeric value, slider responsive, tempo accurate in playback, affects step sequencer timing
+
+### Rest Duration Between Sequences
+- **Functionality**: Configurable pause duration (0-10 seconds) between sequence repetitions when looping
+- **Purpose**: Gives students breathing time between repetitions, essential for vocal exercises
+- **Trigger**: Rest duration slider in sequence configuration
+- **Progression**: Set rest duration → Enable loop → Sequence plays → Rest pause → Sequence repeats
+- **Success criteria**: Rest duration displayed, pause timer accurate, applies only when looping, student sees rest time indicator
+
+### Student Playback Controls
+- **Functionality**: Students can play, pause, resume, skip, and stop sequences with full control
+- **Purpose**: Gives students autonomy to practice at their own pace, repeat difficult sections, or move forward
+- **Trigger**: Control buttons in student view
+- **Progression**: Play → Pause (holds position) → Resume (continues from pause) → Skip (restart sequence) → Stop (reset to beginning)
+- **Success criteria**: All controls work reliably, pause preserves position, progress indicator accurate, loop mode respected
+
+### Real-Time State Synchronization
+- **Functionality**: Instructor sees student's playback state (playing/paused/stopped/progress), student sees instructor's recording/preview state
+- **Purpose**: Creates awareness and connection in remote sessions, helps instructor guide student's practice
+- **Trigger**: State changes on either side
+- **Progression**: Student plays sequence → Instructor sees "Playing - 45%" → Student pauses → Instructor sees "Paused"
+- **Success criteria**: States sync within 1 second, progress percentage accurate, activity indicators clear and color-coded
 ### Sequence Programming (Instructor Only)
 - **Functionality**: Two input modes - Step sequencer grid for precise note placement, or real-time recording that captures keyboard timing
 - **Purpose**: Allows flexible creation of melodic patterns for vocal exercises
 - **Trigger**: Instructor taps sequencer or record mode
-- **Progression**: Select mode → Input sequence (grid clicks or keyboard presses) → Visual feedback shows pattern → Save/preview
-- **Success criteria**: Sequence displays visually, can be edited, previewed locally, and transmitted to student
+- **Progression**: Select mode → Input sequence (grid clicks or keyboard presses) → Hear notes as played → Visual feedback shows pattern → Preview → Transmit
+- **Success criteria**: Sequence displays visually, notes audible during creation, can be edited, previewed locally, and transmitted to student
 
 ### Range Configuration (Instructor Only)
 - **Functionality**: Set starting note and range boundaries (e.g., E3 to E5) for sequence playback with visual indicators
@@ -56,11 +104,11 @@ This is a focused tool with real-time audio synthesis, room management, role man
 - **Success criteria**: Sequence plays in specified range, visual indicators update immediately, validates that range is musically sensible
 
 ### Audio Playback Control
-- **Functionality**: Student hears and can control playback of transmitted sequences; instructor can preview locally
-- **Purpose**: Enables student to practice with accompaniment while instructor listens via video call
-- **Trigger**: Play button (student receives automatic playback, instructor can preview)
-- **Progression**: Receive sequence → Play button → Audio synthesis → Visual timing indicator → Loop/stop controls
-- **Success criteria**: Audio plays accurately timed, uses Web Audio API, no latency issues, instructor device remains silent during student playback
+- **Functionality**: Student has full playback control (play/pause/resume/skip/stop) of transmitted sequences; instructor can preview locally
+- **Purpose**: Enables student to practice with accompaniment at their own pace while instructor listens via video call
+- **Trigger**: Play/pause/skip/stop buttons
+- **Progression**: Receive sequence → Play button → Audio synthesis → Visual timing indicator → Pause/resume → Loop with rest duration → Skip or stop
+- **Success criteria**: Audio plays accurately timed, uses Web Audio API, all controls responsive, pause preserves position, progress tracked, instructor device remains silent during student playback
 
 ### Virtual Keyboard
 - **Functionality**: Touch-responsive piano keyboard for note input and testing
@@ -72,14 +120,19 @@ This is a focused tool with real-time audio synthesis, room management, role man
 ## Edge Case Handling
 
 - **No Audio Permission**: Graceful prompt explaining microphone isn't needed, only speakers
-- **Rapid Role Switching**: Clear sequence context when switching roles to prevent confusion
+- **Rapid Role Switching**: Clear sequence context when switching roles to prevent confusion, presence updates immediately
 - **Room ID Conflicts**: Accept any room ID format, uppercase normalization
 - **Invalid Range Selection**: Validate that min < max and prevent sequences outside practical singing range
 - **Network Loss During Session**: Persist room, role, and sequence data locally so users can rejoin seamlessly
 - **Sequence Too Long**: Limit to 32 steps or 30 seconds to prevent memory issues
 - **Language Switching Mid-Session**: Allow language changes without losing room/role context
 - **Empty Room ID**: Create random 6-character room code automatically
-- **Leaving Room**: Provide clear exit path that clears all session data
+- **Leaving Room**: Provide clear exit path that clears all session data and presence
+- **Stale Presence Data**: Auto-remove users who haven't updated presence in 15 seconds
+- **Multiple Students**: Show count of additional students in room, aggregate playback state
+- **Pause During Loop**: Pause works correctly even when loop is enabled, resume continues properly
+- **BPM Extremes**: Validate tempo stays within musical range (40-200 BPM), provide smooth slider
+- **Rest Duration with No Loop**: Rest duration only applies when loop is enabled, grayed out otherwise
 
 ## Design Direction
 
@@ -127,46 +180,57 @@ Animations should reinforce musical timing and rhythm - emphasizing beat synchro
 ## Component Selection
 
 - **Components**: 
-  - Card - Role selection cards with clear visual hierarchy
-  - Button - Primary actions (Play, Record, Stop) with distinct variants for instructor vs student
-  - Select - Range selector for root note and octave boundaries
+  - Card - Role selection cards, sequence configuration, presence display with clear visual hierarchy
+  - Button - Primary actions (Play, Pause, Resume, Skip, Stop, Record) with distinct variants for instructor vs student
+  - Select - Range selector for root note, octave boundaries, and instrument selection
+  - Slider - BPM tempo control and rest duration adjustment with live value display
   - Tabs - Switch between Step Sequencer and Real-time Recording modes
   - Switch/Toggle - Enable/disable loop playback
   - Dialog - Settings and help modal
-  - Badge - Display current role and sequence status
+  - Badge - Display current role, sequence status, user count, and activity states (recording/playing/paused)
   - Separator - Visual dividers between control sections
+  - Avatar - User presence indicators with role-based icons
   
 - **Customizations**: 
-  - Custom piano keyboard component (not in shadcn) with touch-optimized keys spanning mobile width
-  - Custom step sequencer grid with note rows and time columns
-  - Custom waveform visualization for real-time recording mode
-  - Audio engine wrapper using Web Audio API for synthesis
+  - Custom piano keyboard component (not in shadcn) with touch-optimized keys and immediate audio feedback
+  - Custom step sequencer grid with note rows, time columns, and interactive note input with audio
+  - Custom presence component showing real-time user activity with auto-cleanup
+  - Audio engine wrapper using Web Audio API for synthesis with waveform selection
+  - Progress bar with percentage display for student playback tracking
   
 - **States**: 
-  - Buttons: Distinct visual states for recording (pulsing red), playing (animated), stopped (neutral)
-  - Sequencer steps: Empty (muted), filled (accent color), currently playing (animated highlight)
-  - Piano keys: Default, hover, active/pressed (elevated), disabled (when not in correct mode)
+  - Buttons: Play/Pause toggle, distinct visual states for recording (pulsing red), playing (animated), paused (outline), stopped (neutral)
+  - Sequencer steps: Empty (muted), filled (accent color), currently playing (animated highlight), disabled during playback
+  - Piano keys: Default, hover, active/pressed (elevated with audio), disabled (when playing)
+  - Sliders: Active dragging state, value tooltip, responsive touch targets
+  - Presence badges: Online (green dot), recording (pulsing amber), playing (animated purple), idle (neutral)
   
 - **Icon Selection**: 
   - Play (phosphor-icons: Play) - Start sequence playback
   - Pause (phosphor-icons: Pause) - Pause playback
   - Stop (phosphor-icons: Stop) - Stop and reset
+  - SkipForward (phosphor-icons: SkipForward) - Skip to next iteration
   - Record (phosphor-icons: Record) - Real-time recording mode
   - MusicNote (phosphor-icons: MusicNote) - Sequence programming
-  - User (phosphor-icons: User) - Role selection
-  - SpeakerHigh (phosphor-icons: SpeakerHigh) - Audio controls
+  - User (phosphor-icons: User) - Student role indicator
+  - GraduationCap (phosphor-icons: GraduationCap) - Instructor role indicator
   - Repeat (phosphor-icons: Repeat) - Loop toggle
+  - Circle (phosphor-icons: Circle) - Online status indicator
+  - ArrowsClockwise (phosphor-icons: ArrowsClockwise) - Role switching
   
 - **Spacing**: 
   - Keyboard keys: gap-0.5 for visual separation
   - Sequencer grid: gap-1 between cells
-  - Control sections: p-4 on cards, mb-6 between major sections
-  - Button groups: gap-2 for related actions
+  - Control sections: p-4 on cards, mb-4 between cards, mb-6 between major sections
+  - Button groups: gap-2 for related actions, flex-wrap for responsive layout
+  - Presence cards: p-4 with space-y-3 for user list
   
 - **Mobile**: 
   - Keyboard spans full width with scrollable octaves if needed
   - Sequencer grid scrolls horizontally for longer sequences
   - Role selection stacks vertically
-  - Controls use larger touch targets (min 44px)
+  - Controls use larger touch targets (min 44px) for all buttons
   - Collapsible sections for advanced controls
-  - Fixed bottom bar for primary play/stop controls on student view
+  - Bottom button bar for primary play/pause/stop controls on student view
+  - Sliders with large thumb targets for easy mobile adjustment
+  - Presence component collapses to icon badges on very small screens

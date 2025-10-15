@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useKV } from '@github/spark/hooks';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -6,11 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
 import { PianoKeyboard } from './PianoKeyboard';
 import { StepSequencer } from './StepSequencer';
 import { RangeIndicator } from './RangeIndicator';
+import { RoomPresence } from './RoomPresence';
 import { Play, Stop, Record, ArrowsClockwise, GraduationCap, MusicNote } from '@phosphor-icons/react';
-import { Sequence, SequenceStep } from '@/lib/types';
+import { Sequence, SequenceStep, InstructorState } from '@/lib/types';
 import { getNotesBetween, playNoteByName, resumeAudioContext, WaveformType } from '@/lib/audioEngine';
 import { Translations } from '@/lib/i18n';
 import { toast } from 'sonner';
@@ -23,6 +26,12 @@ interface InstructorViewProps {
 }
 
 const WAVEFORMS: WaveformType[] = ['sine', 'square', 'triangle', 'sawtooth'];
+const INSTRUMENTS = [
+  { value: 'sine', label: 'Pure Tone' },
+  { value: 'triangle', label: 'Soft' },
+  { value: 'square', label: 'Bright' },
+  { value: 'sawtooth', label: 'Rich' },
+];
 const ROOT_NOTES = ['C3', 'C#3', 'D3', 'D#3', 'E3', 'F3', 'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3', 'C4'];
 const DEFAULT_STEPS = 16;
 
@@ -33,6 +42,7 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
   const [maxNote, setMaxNote] = useState('E5');
   const [waveform, setWaveform] = useState<WaveformType>('sine');
   const [bpm, setBpm] = useState(120);
+  const [restDuration, setRestDuration] = useState(2);
   
   const [steps, setSteps] = useState<Array<string | null>>(Array(DEFAULT_STEPS).fill(null));
   const [currentStep, setCurrentStep] = useState(-1);
@@ -42,7 +52,24 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
   const recordStartTimeRef = useRef<number>(0);
   const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  const [, setInstructorState] = useKV<InstructorState>(`room-${roomId}-instructor-state`, {
+    isRecording: false,
+    isPlaying: false,
+    currentStep: -1,
+    timestamp: Date.now(),
+  });
+
   const availableNotes = getNotesBetween(minNote, maxNote);
+
+  useEffect(() => {
+    setInstructorState((current) => ({
+      ...current,
+      isRecording,
+      isPlaying,
+      currentStep,
+      timestamp: Date.now(),
+    }));
+  }, [isRecording, isPlaying, currentStep, setInstructorState]);
 
   useEffect(() => {
     return () => {
@@ -56,6 +83,7 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
     const newSteps = [...steps];
     newSteps[stepIndex] = note;
     setSteps(newSteps);
+    playNoteByName(note, 0.2, waveform);
   };
 
   const handleStepClear = (stepIndex: number) => {
@@ -180,7 +208,8 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
       maxNote,
       waveform,
       bpm,
-      totalDuration
+      totalDuration,
+      restDuration,
     };
 
     onSequenceCreate(sequence);
@@ -193,6 +222,13 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
     setCurrentStep(-1);
     setIsPlaying(false);
     setIsRecording(false);
+  };
+
+  const instructorState: InstructorState = {
+    isRecording,
+    isPlaying,
+    currentStep,
+    timestamp: Date.now(),
   };
 
   return (
@@ -217,6 +253,8 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
           </Button>
         </div>
 
+        <RoomPresence roomId={roomId} currentRole="instructor" t={t} instructorState={instructorState} />
+
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <MusicNote size={20} weight="duotone" />
@@ -227,7 +265,7 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
             <RangeIndicator minNote={minNote} maxNote={maxNote} />
           </div>
 
-          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
             <div className="space-y-2">
               <Label>{t.instructor.rootNote}</Label>
               <Select value={rootNote} onValueChange={setRootNote}>
@@ -271,17 +309,42 @@ export function InstructorView({ roomId, onRoleChange, onSequenceCreate, t }: In
             </div>
 
             <div className="space-y-2">
-              <Label>{t.instructor.waveform}</Label>
+              <Label>{t.instructor.instrument}</Label>
               <Select value={waveform} onValueChange={(v) => setWaveform(v as WaveformType)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {WAVEFORMS.map(w => (
-                    <SelectItem key={w} value={w}>{w}</SelectItem>
+                  {INSTRUMENTS.map(inst => (
+                    <SelectItem key={inst.value} value={inst.value}>{inst.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t.instructor.bpm}: {bpm}</Label>
+              <Slider
+                value={[bpm]}
+                onValueChange={([value]) => setBpm(value)}
+                min={40}
+                max={200}
+                step={5}
+                className="pt-2"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t.instructor.restDuration}: {restDuration}s</Label>
+              <Slider
+                value={[restDuration]}
+                onValueChange={([value]) => setRestDuration(value)}
+                min={0}
+                max={10}
+                step={0.5}
+                className="pt-2"
+              />
+              <p className="text-xs text-muted-foreground">{t.instructor.restDurationDesc}</p>
             </div>
           </div>
 

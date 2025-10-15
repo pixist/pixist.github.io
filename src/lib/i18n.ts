@@ -30,6 +30,10 @@ export interface Translations {
     minNote: string;
     maxNote: string;
     waveform: string;
+    instrument: string;
+    bpm: string;
+    restDuration: string;
+    restDurationDesc: string;
     stepSequencer: string;
     realtimeRecording: string;
     recordedNotes: string;
@@ -43,6 +47,8 @@ export interface Translations {
     clear: string;
     transmit: string;
     range: string;
+    activeUsers: string;
+    noStudents: string;
   };
   student: {
     title: string;
@@ -55,14 +61,22 @@ export interface Translations {
     waveform: string;
     progress: string;
     playing: string;
+    paused: string;
     loop: string;
     loopDesc: string;
     play: string;
+    pause: string;
+    resume: string;
     stop: string;
+    skip: string;
     practiceTips: string;
     tip1: string;
     tip2: string;
     tip3: string;
+    activeUsers: string;
+    instructorActive: string;
+    instructorRecording: string;
+    instructorPlaying: string;
   };
   toasts: {
     addNotes: string;
@@ -107,6 +121,10 @@ const en: Translations = {
     minNote: 'Min Note',
     maxNote: 'Max Note',
     waveform: 'Waveform',
+    instrument: 'Instrument',
+    bpm: 'BPM (Tempo)',
+    restDuration: 'Rest Duration',
+    restDurationDesc: 'Pause between sequence repetitions (seconds)',
     stepSequencer: 'Step Sequencer',
     realtimeRecording: 'Real-time Recording',
     recordedNotes: 'Recorded Notes',
@@ -120,6 +138,8 @@ const en: Translations = {
     clear: 'Clear',
     transmit: 'Transmit to Student',
     range: 'Range',
+    activeUsers: 'Active Users',
+    noStudents: 'No students in room',
   },
   student: {
     title: 'Student Mode',
@@ -132,14 +152,22 @@ const en: Translations = {
     waveform: 'Waveform',
     progress: 'Progress',
     playing: 'Playing',
+    paused: 'Paused',
     loop: 'Loop Playback',
     loopDesc: 'Automatically repeat the sequence',
     play: 'Play Sequence',
+    pause: 'Pause',
+    resume: 'Resume',
     stop: 'Stop',
+    skip: 'Skip',
     practiceTips: '💡 Practice Tips:',
     tip1: 'Listen to the sequence first before attempting to sing',
     tip2: 'Use loop mode to practice difficult patterns',
     tip3: 'Your instructor can hear you via video call while the sequence plays',
+    activeUsers: 'Active Users',
+    instructorActive: 'Instructor is in the room',
+    instructorRecording: 'Instructor is recording',
+    instructorPlaying: 'Instructor is previewing',
   },
   toasts: {
     addNotes: 'Add some notes first!',
@@ -184,6 +212,10 @@ const de: Translations = {
     minNote: 'Tiefster Ton',
     maxNote: 'Höchster Ton',
     waveform: 'Wellenform',
+    instrument: 'Instrument',
+    bpm: 'BPM (Tempo)',
+    restDuration: 'Pausendauer',
+    restDurationDesc: 'Pause zwischen Sequenzwiederholungen (Sekunden)',
     stepSequencer: 'Step-Sequenzer',
     realtimeRecording: 'Echtzeit-Aufnahme',
     recordedNotes: 'Aufgenommene Noten',
@@ -197,6 +229,8 @@ const de: Translations = {
     clear: 'Löschen',
     transmit: 'An Schüler übertragen',
     range: 'Bereich',
+    activeUsers: 'Aktive Benutzer',
+    noStudents: 'Keine Schüler im Raum',
   },
   student: {
     title: 'Schüler-Modus',
@@ -209,14 +243,22 @@ const de: Translations = {
     waveform: 'Wellenform',
     progress: 'Fortschritt',
     playing: 'Spielt ab',
+    paused: 'Pausiert',
     loop: 'Wiederholung',
     loopDesc: 'Sequenz automatisch wiederholen',
     play: 'Sequenz abspielen',
+    pause: 'Pause',
+    resume: 'Fortsetzen',
     stop: 'Stoppen',
+    skip: 'Überspringen',
     practiceTips: '💡 Übungstipps:',
     tip1: 'Hören Sie sich die Sequenz zuerst an, bevor Sie singen',
     tip2: 'Verwenden Sie den Wiederholungsmodus für schwierige Muster',
     tip3: 'Ihr Trainer kann Sie über den Videoanruf hören, während die Sequenz läuft',
+    activeUsers: 'Aktive Benutzer',
+    instructorActive: 'Trainer ist im Raum',
+    instructorRecording: 'Trainer nimmt auf',
+    instructorPlaying: 'Trainer spielt Vorschau',
   },
   toasts: {
     addNotes: 'Fügen Sie zuerst Noten hinzu!',
@@ -261,6 +303,10 @@ const tr: Translations = {
     minNote: 'Min Nota',
     maxNote: 'Maks Nota',
     waveform: 'Dalga Formu',
+    instrument: 'Enstrüman',
+    bpm: 'BPM (Tempo)',
+    restDuration: 'Dinlenme Süresi',
+    restDurationDesc: 'Sekans tekrarları arasındaki duraklama (saniye)',
     stepSequencer: 'Adım Sekansör',
     realtimeRecording: 'Gerçek Zamanlı Kayıt',
     recordedNotes: 'Kaydedilen Notalar',
@@ -274,6 +320,8 @@ const tr: Translations = {
     clear: 'Temizle',
     transmit: 'Öğrenciye İlet',
     range: 'Aralık',
+    activeUsers: 'Aktif Kullanıcılar',
+    noStudents: 'Odada öğrenci yok',
   },
   student: {
     title: 'Öğrenci Modu',
@@ -286,14 +334,22 @@ const tr: Translations = {
     waveform: 'Dalga Formu',
     progress: 'İlerleme',
     playing: 'Çalıyor',
+    paused: 'Duraklatıldı',
     loop: 'Döngü Çalma',
     loopDesc: 'Sekansı otomatik olarak tekrarla',
     play: 'Sekansı Çal',
+    pause: 'Duraklat',
+    resume: 'Devam Et',
     stop: 'Durdur',
+    skip: 'Atla',
     practiceTips: '💡 Pratik İpuçları:',
     tip1: 'Şarkı söylemeye çalışmadan önce sekansı dinleyin',
     tip2: 'Zor kalıplar için döngü modunu kullanın',
     tip3: 'Sekans çalarken eğitmeniniz sizi görüntülü arama ile duyabilir',
+    activeUsers: 'Aktif Kullanıcılar',
+    instructorActive: 'Eğitmen odada',
+    instructorRecording: 'Eğitmen kaydediyor',
+    instructorPlaying: 'Eğitmen önizliyor',
   },
   toasts: {
     addNotes: 'Önce notalar ekleyin!',

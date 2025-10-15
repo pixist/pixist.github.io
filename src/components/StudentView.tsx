@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
+import { useKV } from '@github/spark/hooks';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { RangeIndicator } from './RangeIndicator';
-import { Play, Stop, Repeat, ArrowsClockwise, User, MusicNote } from '@phosphor-icons/react';
-import { Sequence } from '@/lib/types';
+import { RoomPresence } from './RoomPresence';
+import { Play, Stop, Pause, SkipForward, X, Repeat, ArrowsClockwise, User, MusicNote } from '@phosphor-icons/react';
+import { Sequence, StudentPlaybackState } from '@/lib/types';
 import { playNoteByName, resumeAudioContext } from '@/lib/audioEngine';
 import { Translations } from '@/lib/i18n';
 import { toast } from 'sonner';
@@ -21,10 +23,33 @@ interface StudentViewProps {
 
 export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [loop, setLoop] = useState(false);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(-1);
   const [progress, setProgress] = useState(0);
   const timeoutsRef = useRef<NodeJS.Timeout[]>([]);
+  const pauseTimeRef = useRef<number>(0);
+  const remainingTimeRef = useRef<number>(0);
+  const currentIterationRef = useRef<number>(0);
+
+  const [, setStudentState] = useKV<StudentPlaybackState>(`room-${roomId}-student-state`, {
+    isPlaying: false,
+    isPaused: false,
+    currentStep: -1,
+    progress: 0,
+    timestamp: Date.now(),
+  });
+
+  useEffect(() => {
+    setStudentState((current) => ({
+      ...current,
+      isPlaying,
+      isPaused,
+      currentStep: currentNoteIndex,
+      progress,
+      timestamp: Date.now(),
+    }));
+  }, [isPlaying, isPaused, currentNoteIndex, progress, setStudentState]);
 
   useEffect(() => {
     return () => {
@@ -40,13 +65,17 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
 
   const stopPlayback = () => {
     setIsPlaying(false);
+    setIsPaused(false);
     setCurrentNoteIndex(-1);
     setProgress(0);
     timeoutsRef.current.forEach(clearTimeout);
     timeoutsRef.current = [];
+    pauseTimeRef.current = 0;
+    remainingTimeRef.current = 0;
+    currentIterationRef.current = 0;
   };
 
-  const playSequence = async () => {
+  const playSequence = async (fromPause = false) => {
     if (!sequence) {
       toast.error(t.toasts.noSequence);
       return;
@@ -54,20 +83,22 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
 
     await resumeAudioContext();
 
-    if (isPlaying) {
-      stopPlayback();
-      return;
+    setIsPlaying(true);
+    setIsPaused(false);
+    setCurrentNoteIndex(0);
+    if (!fromPause) {
+      setProgress(0);
+      currentIterationRef.current = 0;
     }
 
-    setIsPlaying(true);
-    setCurrentNoteIndex(0);
-    setProgress(0);
-
-    const playOnce = () => {
+    const playOnce = (offset = 0) => {
       timeoutsRef.current = [];
-      const startTime = Date.now();
+      const startTime = Date.now() - offset;
 
       sequence.steps.forEach((step, index) => {
+        const adjustedTimestamp = step.timestamp - offset;
+        if (adjustedTimestamp < 0) return;
+
         const timeout = setTimeout(() => {
           playNoteByName(step.note, step.duration, sequence.waveform);
           setCurrentNoteIndex(index);
@@ -77,20 +108,70 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
 
           if (index === sequence.steps.length - 1) {
             setTimeout(() => {
+              currentIterationRef.current++;
               if (loop) {
-                playOnce();
+                if (sequence.restDuration > 0) {
+                  setCurrentNoteIndex(-1);
+                  setTimeout(() => {
+                    if (isPlaying && !isPaused) {
+                      playOnce();
+                    }
+                  }, sequence.restDuration * 1000);
+                } else {
+                  playOnce();
+                }
               } else {
                 stopPlayback();
               }
             }, step.duration * 1000);
           }
-        }, step.timestamp);
+        }, adjustedTimestamp);
 
         timeoutsRef.current.push(timeout);
       });
     };
 
-    playOnce();
+    playOnce(fromPause ? remainingTimeRef.current : 0);
+  };
+
+  const handlePlayPause = async () => {
+    if (!sequence) {
+      toast.error(t.toasts.noSequence);
+      return;
+    }
+
+    if (!isPlaying) {
+      await playSequence();
+    } else if (isPaused) {
+      await playSequence(true);
+    } else {
+      setIsPaused(true);
+      pauseTimeRef.current = Date.now();
+      remainingTimeRef.current = (progress / 100) * sequence.totalDuration;
+      timeoutsRef.current.forEach(clearTimeout);
+      timeoutsRef.current = [];
+    }
+  };
+
+  const handleStop = () => {
+    stopPlayback();
+  };
+
+  const handleSkip = () => {
+    if (!sequence) return;
+    
+    stopPlayback();
+    setTimeout(() => {
+      playSequence();
+    }, 100);
+  };
+
+  const studentState: StudentPlaybackState = {
+    isPlaying,
+    isPaused,
+    currentStep: currentNoteIndex,
+    progress,
+    timestamp: Date.now(),
   };
 
   return (
@@ -114,6 +195,8 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
             {t.roles.switchRole}
           </Button>
         </div>
+
+        <RoomPresence roomId={roomId} currentRole="student" t={t} studentState={studentState} />
 
         {!sequence ? (
           <Card className="p-12">
@@ -160,9 +243,14 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <Label>{t.student.progress}</Label>
-                    {isPlaying && (
+                    {isPlaying && !isPaused && (
                       <Badge variant="secondary" className="animate-pulse">
                         {t.student.playing}
+                      </Badge>
+                    )}
+                    {isPaused && (
+                      <Badge variant="outline">
+                        {t.student.paused}
                       </Badge>
                     )}
                   </div>
@@ -202,6 +290,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
                     </Label>
                     <p className="text-xs text-muted-foreground">
                       {t.student.loopDesc}
+                      {sequence.restDuration > 0 && ` (${sequence.restDuration}s rest)`}
                     </p>
                   </div>
                   <Repeat size={24} weight={loop ? 'fill' : 'regular'} className="text-muted-foreground" />
@@ -213,21 +302,46 @@ export function StudentView({ roomId, sequence, onRoleChange, t }: StudentViewPr
               <div className="flex gap-2">
                 <Button
                   size="lg"
-                  onClick={playSequence}
+                  onClick={handlePlayPause}
                   className="flex-1 bg-student hover:bg-student/90 text-student-foreground"
                 >
-                  {isPlaying ? (
-                    <>
-                      <Stop className="mr-2" size={20} weight="fill" />
-                      {t.student.stop}
-                    </>
-                  ) : (
+                  {!isPlaying ? (
                     <>
                       <Play className="mr-2" size={20} weight="fill" />
                       {t.student.play}
                     </>
+                  ) : isPaused ? (
+                    <>
+                      <Play className="mr-2" size={20} weight="fill" />
+                      {t.student.resume}
+                    </>
+                  ) : (
+                    <>
+                      <Pause className="mr-2" size={20} weight="fill" />
+                      {t.student.pause}
+                    </>
                   )}
                 </Button>
+
+                {isPlaying && (
+                  <>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={handleSkip}
+                    >
+                      <SkipForward size={20} weight="fill" />
+                    </Button>
+
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={handleStop}
+                    >
+                      <Stop size={20} weight="fill" />
+                    </Button>
+                  </>
+                )}
               </div>
             </Card>
           </>

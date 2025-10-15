@@ -17,6 +17,7 @@ export interface Sequence {
   waveform: WaveformType;
   bpm: number;
   totalDuration: number;
+  restDuration: number;
 }
 
 export interface AppState {
@@ -25,4 +26,25 @@ export interface AppState {
   isPlaying: boolean;
   isRecording: boolean;
   currentStep: number;
+}
+
+export interface RoomPresence {
+  userId: string;
+  role: Role;
+  timestamp: number;
+}
+
+export interface StudentPlaybackState {
+  isPlaying: boolean;
+  isPaused: boolean;
+  currentStep: number;
+  progress: number;
+  timestamp: number;
+}
+
+export interface InstructorState {
+  isRecording: boolean;
+  isPlaying: boolean;
+  currentStep: number;
+  timestamp: number;
 }
