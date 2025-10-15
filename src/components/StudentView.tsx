@@ -10,7 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { RangeIndicator } from './RangeIndicator';
 import { RoomPresence } from './RoomPresence';
 import { FullPianoKeyboard } from './FullPianoKeyboard';
-import { Play, Stop, Pause, SkipForward, X, Repeat, ArrowsClockwise, User, MusicNote, PlayCircle, ArrowCounterClockwise } from '@phosphor-icons/react';
+import { Play, Stop, SkipForward, Repeat, ArrowsClockwise, User, MusicNote, PlayCircle, ArrowCounterClockwise } from '@phosphor-icons/react';
 import { Sequence, StudentPlaybackState, RoomSettings } from '@/lib/types';
 import { playNoteByName, resumeAudioContext, WaveformType } from '@/lib/audioEngine';
 import { Translations, Language } from '@/lib/i18n';
@@ -108,10 +108,6 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
     if (sequence) {
       toast.success(t.toasts.sequenceReceived);
       
-      const baseDuration = sequence.steps.length > 0 
-        ? sequence.steps[sequence.steps.length - 1].timestamp + (sequence.steps[sequence.steps.length - 1].duration * 1000)
-        : 0;
-      
       const cycles: number[][] = [];
       let currentCycleSteps: number[] = [];
       let lastTimestamp = 0;
@@ -159,17 +155,18 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
 
     setIsPlaying(true);
     setIsPaused(false);
-    setCurrentNoteIndex(0);
+    
     if (!fromPause) {
       setProgress(0);
       setCurrentCycle(0);
+      setCurrentNoteIndex(0);
       currentIterationRef.current = 0;
     }
 
     if (cycleMode) {
       playCycleByDycle(fromPause ? currentCycle : 0);
     } else {
-      playContinuous(fromPause ? remainingTimeRef.current : 0);
+      playContinuous();
     }
   };
 
@@ -187,11 +184,14 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
     }
     
     const stepsInCycle = cycleSteps.map(idx => sequence.steps[idx]);
+    const firstStepTimestamp = stepsInCycle[0].timestamp;
     
     timeoutsRef.current = [];
     
     stepsInCycle.forEach((step, relativeIndex) => {
       const absoluteIndex = cycleSteps[relativeIndex];
+      const relativeTimestamp = step.timestamp - firstStepTimestamp;
+      
       const timeout = setTimeout(() => {
         playNoteByName(step.note, step.duration, waveform);
         setCurrentNoteIndex(absoluteIndex);
@@ -215,7 +215,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
             }
           }, step.duration * 1000);
         }
-      }, step.timestamp);
+      }, relativeTimestamp);
       
       timeoutsRef.current.push(timeout);
     });
@@ -224,14 +224,11 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
   const playContinuous = (offset = 0) => {
     if (!sequence) return;
     
-    const playOnce = (offset = 0) => {
+    const playOnce = (iteration = 0) => {
       timeoutsRef.current = [];
-      const startTime = Date.now() - offset;
+      const startTime = Date.now();
 
       sequence.steps.forEach((step, index) => {
-        const adjustedTimestamp = step.timestamp - offset;
-        if (adjustedTimestamp < 0) return;
-
         const timeout = setTimeout(() => {
           playNoteByName(step.note, step.duration, waveform);
           setCurrentNoteIndex(index);
@@ -246,31 +243,31 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
 
           if (index === sequence.steps.length - 1) {
             setTimeout(() => {
-              currentIterationRef.current++;
+              setCurrentNoteIndex(-1);
+              setProgress(100);
+              
               if (loop) {
                 if (sequence.restDuration > 0) {
-                  setCurrentNoteIndex(-1);
-                  setCurrentNote(null);
                   setTimeout(() => {
                     if (isPlaying && !isPaused) {
-                      playOnce();
+                      playOnce(iteration + 1);
                     }
                   }, sequence.restDuration * 1000);
                 } else {
-                  playOnce();
+                  playOnce(iteration + 1);
                 }
               } else {
                 stopPlayback();
               }
             }, step.duration * 1000);
           }
-        }, adjustedTimestamp);
+        }, step.timestamp);
 
         timeoutsRef.current.push(timeout);
       });
     };
 
-    playOnce(offset);
+    playOnce(currentIterationRef.current);
   };
 
   const handlePlayPause = async () => {
@@ -281,14 +278,8 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
 
     if (!isPlaying) {
       await playSequence();
-    } else if (isPaused) {
-      await playSequence(true);
     } else {
-      setIsPaused(true);
-      pauseTimeRef.current = Date.now();
-      remainingTimeRef.current = (progress / 100) * sequence.totalDuration;
-      timeoutsRef.current.forEach(clearTimeout);
-      timeoutsRef.current = [];
+      stopPlayback();
     }
   };
 
@@ -606,30 +597,13 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
                       <Button
                         size="lg"
                         variant="outline"
-                        onClick={handlePlayPause}
+                        onClick={handleStop}
                         className="flex-1"
                       >
-                        {isPaused ? (
-                          <>
-                            <Play className="mr-2" size={20} weight="fill" />
-                            {t.student.resume}
-                          </>
-                        ) : (
-                          <>
-                            <Pause className="mr-2" size={20} weight="fill" />
-                            {t.student.pause}
-                          </>
-                        )}
+                        <Stop className="mr-2" size={20} weight="fill" />
+                        {t.student.stop}
                       </Button>
                     )}
-
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      onClick={handleStop}
-                    >
-                      <Stop size={20} weight="fill" />
-                    </Button>
                   </div>
                 )}
               </div>

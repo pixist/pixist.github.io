@@ -90,25 +90,32 @@ This is a focused tool with real-time audio synthesis, room management, role man
 - **Progression**: Student plays sequence → Instructor sees "Playing - 45%" → Student pauses → Instructor sees "Paused"
 - **Success criteria**: States sync within 1 second, progress percentage accurate, activity indicators clear and color-coded
 ### Sequence Programming (Instructor Only)
-- **Functionality**: Two input modes - Step sequencer grid for precise note placement, or real-time recording that captures keyboard timing
-- **Purpose**: Allows flexible creation of melodic patterns for vocal exercises
+- **Functionality**: Two input modes - Step sequencer grid for precise note placement, or real-time recording that captures keyboard timing. Creates the base sequence (one cycle) that will be transposed across the full range.
+- **Purpose**: Allows flexible creation of melodic patterns for vocal exercises. The base sequence is one cycle, which gets transposed at every semitone within the range to create the complete set.
 - **Trigger**: Instructor taps sequencer or record mode
-- **Progression**: Select mode → Input sequence (grid clicks or keyboard presses) → Hear notes as played → Visual feedback shows pattern → Preview → Transmit
-- **Success criteria**: Sequence displays visually, notes audible during creation, can be edited, previewed locally, and transmitted to student
+- **Progression**: Select mode → Input base sequence (grid clicks or keyboard presses) → Hear notes as played → Visual feedback shows pattern → Preview → Transmit entire transposed set
+- **Success criteria**: Base sequence displays visually, notes audible during creation, can be edited, previewed locally, and transmitted as full transposed set to student
 
-### Range Configuration (Instructor Only)
-- **Functionality**: Set starting note and range boundaries (e.g., E3 to E5) for sequence playback with visual indicators
-- **Purpose**: Transposes exercises to match student's vocal range with clear visual feedback
-- **Trigger**: Dropdown controls in sequence configuration
-- **Progression**: Program sequence → Set root note → Define min/max range → See visual indicators → Transmit to student
-- **Success criteria**: Sequence plays in specified range, visual indicators update immediately, validates that range is musically sensible
+### Transposition and Range Configuration
+- **Functionality**: Set root note, start/end range boundaries (e.g., E3 to E5), and direction (one-way or both-ways). The system transposes the base sequence at every semitone step within the range.
+- **Purpose**: Creates a complete vocal exercise set where the student practices the same pattern at progressively higher (and optionally lower) pitches.
+- **Trigger**: Range controls in sequence configuration
+- **Progression**: Program base sequence → Set root note → Define min/max range → Choose direction → System generates transposed set → Transmit to student
+- **Success criteria**: One cycle = base sequence. One complete set = all transpositions. Both-ways doubles back down. Student receives entire set.
+
+### Student Playback Modes
+- **Functionality**: Two playback modes - Cycle-by-Cycle (plays the set once, pausing between each transposition) or Continuous (plays the entire set without stopping, optionally looping the whole set)
+- **Purpose**: Cycle-by-Cycle allows practice of each transposition with control between each. Continuous mode flows through the entire range for fluidity practice.
+- **Trigger**: Mode buttons in student view
+- **Progression**: Cycle-by-Cycle: Play set → First transposition plays → Pause → Choose (Previous/Repeat/Next) → Complete set once. Continuous: Play set → Entire set plays through → Optional loop repeats entire set with rest duration
+- **Success criteria**: Cycle-by-Cycle completes one full set with pauses. Continuous plays through entire set, loop setting makes it repeat indefinitely with rest breaks.
 
 ### Audio Playback Control
-- **Functionality**: Student has full playback control (play/pause/resume/skip/stop) of transmitted sequences; instructor can preview locally
-- **Purpose**: Enables student to practice with accompaniment at their own pace while instructor listens via video call
-- **Trigger**: Play/pause/skip/stop buttons
-- **Progression**: Receive sequence → Play button → Audio synthesis → Visual timing indicator → Pause/resume → Loop with rest duration → Skip or stop
-- **Success criteria**: Audio plays accurately timed, uses Web Audio API, all controls responsive, pause preserves position, progress tracked, instructor device remains silent during student playback
+- **Functionality**: Student has two playback modes - Cycle-by-Cycle (one complete set with pauses) or Continuous (entire set, optionally looping); instructor can preview locally
+- **Purpose**: Enables student to practice with accompaniment at their own pace while instructor listens via video call. Different modes support different practice styles.
+- **Trigger**: Play mode buttons, then playback controls
+- **Progression**: Receive sequence → Choose mode (Cycle-by-Cycle or Continuous) → Play → Audio synthesis → Visual timing indicator → Mode-specific controls → Optional loop in Continuous mode
+- **Success criteria**: Audio plays accurately timed, uses Web Audio API, mode buttons clear, Cycle-by-Cycle pauses between transpositions with Previous/Repeat/Next options, Continuous plays through with optional looping, instructor device remains silent during student playback
 
 ### Virtual Keyboard
 - **Functionality**: Touch-responsive piano keyboard for note input and testing
@@ -130,9 +137,11 @@ This is a focused tool with real-time audio synthesis, room management, role man
 - **Leaving Room**: Provide clear exit path that clears all session data and presence
 - **Stale Presence Data**: Auto-remove users who haven't updated presence in 15 seconds
 - **Multiple Students**: Show count of additional students in room, aggregate playback state
-- **Pause During Loop**: Pause works correctly even when loop is enabled, resume continues properly
+- **Continuous Mode Stop**: Simple stop button available during continuous playback
+- **Cycle-by-Cycle Navigation**: Previous/Repeat/Next buttons only appear when paused between transpositions
 - **BPM Extremes**: Validate tempo stays within musical range (40-200 BPM), provide smooth slider
-- **Rest Duration with No Loop**: Rest duration only applies when loop is enabled, grayed out otherwise
+- **Rest Duration with No Loop**: Rest duration only applies when loop is enabled in Continuous mode
+- **Mode Switching During Playback**: Switching between Cycle-by-Cycle and Continuous stops current playback and restarts in new mode
 
 ## Design Direction
 
@@ -181,13 +190,13 @@ Animations should reinforce musical timing and rhythm - emphasizing beat synchro
 
 - **Components**: 
   - Card - Role selection cards, sequence configuration, presence display with clear visual hierarchy
-  - Button - Primary actions (Play, Pause, Resume, Skip, Stop, Record) with distinct variants for instructor vs student
+  - Button - Primary actions (Play modes: Cycle-by-Cycle/Continuous, Stop, Previous/Repeat/Next in cycle mode, Record) with distinct variants for instructor vs student
   - Select - Range selector for root note, octave boundaries, and instrument selection
   - Slider - BPM tempo control and rest duration adjustment with live value display
   - Tabs - Switch between Step Sequencer and Real-time Recording modes
-  - Switch/Toggle - Enable/disable loop playback
+  - Switch/Toggle - Enable/disable loop playback in Continuous mode
   - Dialog - Settings and help modal
-  - Badge - Display current role, sequence status, user count, and activity states (recording/playing/paused)
+  - Badge - Display current role, sequence status, user count, cycle number, and activity states (recording/playing/paused)
   - Separator - Visual dividers between control sections
   - Avatar - User presence indicators with role-based icons
   
@@ -199,22 +208,24 @@ Animations should reinforce musical timing and rhythm - emphasizing beat synchro
   - Progress bar with percentage display for student playback tracking
   
 - **States**: 
-  - Buttons: Play/Pause toggle, distinct visual states for recording (pulsing red), playing (animated), paused (outline), stopped (neutral)
+  - Buttons: Cycle-by-Cycle/Continuous mode toggles (active mode highlighted), distinct visual states for recording (pulsing red), playing (animated), waiting between cycles (outline with options), stopped (neutral)
   - Sequencer steps: Empty (muted), filled (accent color), currently playing (animated highlight), disabled during playback
   - Piano keys: Default, hover, active/pressed (elevated with audio), disabled (when playing)
   - Sliders: Active dragging state, value tooltip, responsive touch targets
   - Presence badges: Online (green dot), recording (pulsing amber), playing (animated purple), idle (neutral)
+  - Cycle navigation: Previous/Repeat/Next buttons only visible when waiting between cycles in Cycle-by-Cycle mode
   
 - **Icon Selection**: 
-  - Play (phosphor-icons: Play) - Start sequence playback
-  - Pause (phosphor-icons: Pause) - Pause playback
+  - Play (phosphor-icons: Play) - Continuous mode playback
+  - PlayCircle (phosphor-icons: PlayCircle) - Cycle-by-Cycle mode
   - Stop (phosphor-icons: Stop) - Stop and reset
-  - SkipForward (phosphor-icons: SkipForward) - Skip to next iteration
+  - SkipForward (phosphor-icons: SkipForward) - Next cycle in Cycle-by-Cycle mode
+  - ArrowCounterClockwise (phosphor-icons: ArrowCounterClockwise) - Previous cycle
   - Record (phosphor-icons: Record) - Real-time recording mode
   - MusicNote (phosphor-icons: MusicNote) - Sequence programming
   - User (phosphor-icons: User) - Student role indicator
   - GraduationCap (phosphor-icons: GraduationCap) - Instructor role indicator
-  - Repeat (phosphor-icons: Repeat) - Loop toggle
+  - Repeat (phosphor-icons: Repeat) - Loop toggle and repeat cycle action
   - Circle (phosphor-icons: Circle) - Online status indicator
   - ArrowsClockwise (phosphor-icons: ArrowsClockwise) - Role switching
   
@@ -231,6 +242,8 @@ Animations should reinforce musical timing and rhythm - emphasizing beat synchro
   - Role selection stacks vertically
   - Controls use larger touch targets (min 44px) for all buttons
   - Collapsible sections for advanced controls
-  - Bottom button bar for primary play/pause/stop controls on student view
+  - Mode selection buttons (Cycle-by-Cycle/Continuous) stack vertically or use full width on mobile
+  - Cycle navigation buttons (Previous/Repeat/Next) use equal width distribution on mobile
+  - Bottom button bar for primary play/stop controls on student view
   - Sliders with large thumb targets for easy mobile adjustment
   - Presence component collapses to icon badges on very small screens
