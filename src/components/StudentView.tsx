@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RangeIndicator } from './RangeIndicator';
 import { RoomPresence } from './RoomPresence';
 import { FullPianoKeyboard } from './FullPianoKeyboard';
-import { Play, Stop, Pause, SkipForward, X, Repeat, ArrowsClockwise, User, MusicNote } from '@phosphor-icons/react';
+import { Play, Stop, Pause, SkipForward, X, Repeat, ArrowsClockwise, User, MusicNote, PlayCircle } from '@phosphor-icons/react';
 import { Sequence, StudentPlaybackState } from '@/lib/types';
 import { playNoteByName, resumeAudioContext } from '@/lib/audioEngine';
 import { Translations, Language } from '@/lib/i18n';
@@ -29,13 +29,18 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [loop, setLoop] = useState(false);
+  const [cycleMode, setCycleMode] = useState(false);
   const [currentNoteIndex, setCurrentNoteIndex] = useState(-1);
   const [currentNote, setCurrentNote] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [currentCycle, setCurrentCycle] = useState(0);
+  const [totalCycles, setTotalCycles] = useState(0);
+  const [waitingForNext, setWaitingForNext] = useState(false);
   const timeoutsRef = useRef<NodeJS.Timeout[]>([]);
   const pauseTimeRef = useRef<number>(0);
   const remainingTimeRef = useRef<number>(0);
   const currentIterationRef = useRef<number>(0);
+  const cycleStepsRef = useRef<number[][]>([]);
 
   const upcomingNotes = useMemo(() => {
     if (!sequence || !isPlaying || currentNoteIndex < 0) return [];
@@ -83,6 +88,30 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
   useEffect(() => {
     if (sequence) {
       toast.success(t.toasts.sequenceReceived);
+      
+      const baseDuration = sequence.steps.length > 0 
+        ? sequence.steps[sequence.steps.length - 1].timestamp + (sequence.steps[sequence.steps.length - 1].duration * 1000)
+        : 0;
+      
+      const cycles: number[][] = [];
+      let currentCycleSteps: number[] = [];
+      let lastTimestamp = 0;
+      
+      sequence.steps.forEach((step, idx) => {
+        if (step.timestamp < lastTimestamp) {
+          cycles.push([...currentCycleSteps]);
+          currentCycleSteps = [];
+        }
+        currentCycleSteps.push(idx);
+        lastTimestamp = step.timestamp;
+      });
+      
+      if (currentCycleSteps.length > 0) {
+        cycles.push(currentCycleSteps);
+      }
+      
+      cycleStepsRef.current = cycles;
+      setTotalCycles(cycles.length);
     }
   }, [sequence?.id, t.toasts.sequenceReceived]);
 
@@ -92,6 +121,8 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
     setCurrentNoteIndex(-1);
     setCurrentNote(null);
     setProgress(0);
+    setCurrentCycle(0);
+    setWaitingForNext(false);
     timeoutsRef.current.forEach(clearTimeout);
     timeoutsRef.current = [];
     pauseTimeRef.current = 0;
@@ -112,9 +143,75 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
     setCurrentNoteIndex(0);
     if (!fromPause) {
       setProgress(0);
+      setCurrentCycle(0);
       currentIterationRef.current = 0;
     }
 
+    if (cycleMode) {
+      playCycleByDycle(fromPause ? currentCycle : 0);
+    } else {
+      playContinuous(fromPause ? remainingTimeRef.current : 0);
+    }
+  };
+
+  const playCycleByDycle = (startCycle = 0) => {
+    if (!sequence || cycleStepsRef.current.length === 0) return;
+    
+    const cycles = cycleStepsRef.current;
+    let cycleIndex = startCycle;
+    
+    const playNextCycle = () => {
+      if (cycleIndex >= cycles.length) {
+        if (loop) {
+          cycleIndex = 0;
+          playNextCycle();
+        } else {
+          stopPlayback();
+        }
+        return;
+      }
+      
+      setCurrentCycle(cycleIndex);
+      setWaitingForNext(false);
+      const cycleSteps = cycles[cycleIndex];
+      const stepsInCycle = cycleSteps.map(idx => sequence.steps[idx]);
+      
+      timeoutsRef.current = [];
+      
+      stepsInCycle.forEach((step, relativeIndex) => {
+        const absoluteIndex = cycleSteps[relativeIndex];
+        const timeout = setTimeout(() => {
+          playNoteByName(step.note, step.duration, sequence.waveform);
+          setCurrentNoteIndex(absoluteIndex);
+          setCurrentNote(step.note);
+          
+          const cycleProgress = ((cycleIndex + 1) / cycles.length) * 100;
+          setProgress(cycleProgress);
+          
+          setTimeout(() => {
+            setCurrentNote(null);
+          }, step.duration * 1000);
+          
+          if (relativeIndex === stepsInCycle.length - 1) {
+            setTimeout(() => {
+              setCurrentNoteIndex(-1);
+              setWaitingForNext(true);
+            }, step.duration * 1000);
+          }
+        }, step.timestamp);
+        
+        timeoutsRef.current.push(timeout);
+      });
+      
+      cycleIndex++;
+    };
+    
+    playNextCycle();
+  };
+
+  const playContinuous = (offset = 0) => {
+    if (!sequence) return;
+    
     const playOnce = (offset = 0) => {
       timeoutsRef.current = [];
       const startTime = Date.now() - offset;
@@ -161,7 +258,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
       });
     };
 
-    playOnce(fromPause ? remainingTimeRef.current : 0);
+    playOnce(offset);
   };
 
   const handlePlayPause = async () => {
@@ -190,10 +287,15 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
   const handleSkip = () => {
     if (!sequence) return;
     
-    stopPlayback();
-    setTimeout(() => {
-      playSequence();
-    }, 100);
+    if (cycleMode && waitingForNext) {
+      setWaitingForNext(false);
+      playCycleByDycle(currentCycle);
+    } else {
+      stopPlayback();
+      setTimeout(() => {
+        playSequence();
+      }, 100);
+    }
   };
 
   const studentState: StudentPlaybackState = {
@@ -281,15 +383,25 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
                   />
                 </div>
                 <div className="flex items-center justify-between mt-2">
-                  <span className="text-sm text-muted-foreground">{Math.round(progress)}%</span>
+                  <span className="text-sm text-muted-foreground">
+                    {cycleMode && totalCycles > 0 
+                      ? `Cycle ${currentCycle + 1}/${totalCycles}`
+                      : `${Math.round(progress)}%`
+                    }
+                  </span>
                   {currentNote && (
                     <Badge variant="secondary" className="font-mono">
                       {currentNote}
                     </Badge>
                   )}
-                  {isPlaying && !isPaused && (
+                  {isPlaying && !isPaused && !waitingForNext && (
                     <Badge variant="secondary" className="animate-pulse">
                       {t.student.playing}
+                    </Badge>
+                  )}
+                  {waitingForNext && (
+                    <Badge variant="outline" className="animate-pulse">
+                      Press Next →
                     </Badge>
                   )}
                   {isPaused && (
@@ -338,39 +450,92 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
             </Card>
 
             <Card className="p-4">
-              <div className="flex gap-2">
-                <Button
-                  size="lg"
-                  onClick={handlePlayPause}
-                  className="flex-1 bg-student hover:bg-student/90 text-student-foreground"
-                >
-                  {!isPlaying ? (
-                    <>
-                      <Play className="mr-2" size={20} weight="fill" />
-                      {t.student.play}
-                    </>
-                  ) : isPaused ? (
-                    <>
-                      <Play className="mr-2" size={20} weight="fill" />
-                      {t.student.resume}
-                    </>
-                  ) : (
-                    <>
-                      <Pause className="mr-2" size={20} weight="fill" />
-                      {t.student.pause}
-                    </>
-                  )}
-                </Button>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    size="lg"
+                    onClick={() => {
+                      if (!isPlaying || cycleMode) {
+                        setCycleMode(true);
+                        if (!isPlaying) {
+                          handlePlayPause();
+                        }
+                      } else {
+                        stopPlayback();
+                        setCycleMode(true);
+                        setTimeout(() => handlePlayPause(), 50);
+                      }
+                    }}
+                    disabled={isPlaying && cycleMode}
+                    className={cn(
+                      "flex-1",
+                      isPlaying && cycleMode
+                        ? "bg-student hover:bg-student/90 text-student-foreground"
+                        : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                    )}
+                  >
+                    <PlayCircle className="mr-2" size={20} weight="fill" />
+                    Cycle-by-Cycle
+                  </Button>
+
+                  <Button
+                    size="lg"
+                    onClick={() => {
+                      if (!isPlaying || !cycleMode) {
+                        setCycleMode(false);
+                        if (!isPlaying) {
+                          handlePlayPause();
+                        }
+                      } else {
+                        stopPlayback();
+                        setCycleMode(false);
+                        setTimeout(() => handlePlayPause(), 50);
+                      }
+                    }}
+                    disabled={isPlaying && !cycleMode}
+                    className={cn(
+                      "flex-1",
+                      isPlaying && !cycleMode
+                        ? "bg-student hover:bg-student/90 text-student-foreground"
+                        : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                    )}
+                  >
+                    <Play className="mr-2" size={20} weight="fill" />
+                    Continuous
+                  </Button>
+                </div>
 
                 {isPlaying && (
-                  <>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      onClick={handleSkip}
-                    >
-                      <SkipForward size={20} weight="fill" />
-                    </Button>
+                  <div className="flex gap-2">
+                    {cycleMode && waitingForNext ? (
+                      <Button
+                        size="lg"
+                        onClick={handleSkip}
+                        className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground animate-pulse"
+                      >
+                        <SkipForward className="mr-2" size={20} weight="fill" />
+                        Next Cycle
+                      </Button>
+                    ) : (
+                      <Button
+                        size="lg"
+                        variant="outline"
+                        onClick={handlePlayPause}
+                        className="flex-1"
+                      >
+                        {isPaused ? (
+                          <>
+                            <Play className="mr-2" size={20} weight="fill" />
+                            {t.student.resume}
+                          </>
+                        ) : (
+                          <>
+                            <Pause className="mr-2" size={20} weight="fill" />
+                            {t.student.pause}
+                          </>
+                        )}
+                      </Button>
+                    )}
 
                     <Button
                       size="lg"
@@ -379,7 +544,7 @@ export function StudentView({ roomId, sequence, onRoleChange, t, language, onLan
                     >
                       <Stop size={20} weight="fill" />
                     </Button>
-                  </>
+                  </div>
                 )}
               </div>
             </Card>
